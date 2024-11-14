@@ -1,6 +1,3 @@
 pub mod permutation;
-pub mod permutationGroup;
-mod generator;
-mod group;
-mod schreier;
-mod group_action;
+pub mod schreier;
+pub mod group_element;

@@ -1,42 +1,59 @@
 use std::collections::HashMap;
-use crate::schreier::group::Group;
+use crate::schreier::group_element::GroupElement;
+use crate::schreier::permutation::Permutation;
 
-struct Schreier<'a, T: Group>{
-    group: T,
-    generators: &'a [&'a [T::Element]]
-
+struct Schreier<T>
+where T: GroupElement
+{
+    generators: Vec<T>
 }
 
-impl<'a, T:Group> Schreier<T>{
-    pub fn get_orbit<'a>(&self, origin: &Self::Target) -> &'a[Self::Target]{
-        let generators = self.get_generators();
-        //TODO: is a hashmap really the best way to do this?
-        let mut orbit = HashMap::new();
-        orbit.insert(origin, true);
-        let mut uncalculated_orbit= vec![origin];
 
-        while !uncalculated_orbit.is_empty(){
-            let mut new_uncalculated_orbit = Vec::new();
-            for element in uncalculated_orbit{
-                self.build_orbit()
-            }
 
-        }
+impl< T:GroupElement> Schreier< T>{
 
-        let mut missing_
-
-        Self::operate(&element,&element)
+    pub fn new(generators: Vec<T>) -> Schreier<T>{
+        Schreier{generators}
     }
+    pub fn get_orbit(&self, origin: T::Target) -> Vec<T::Target> {
+        let mut orbit_map = HashMap::new();
+        let mut orbit_vec = vec![origin];
+        orbit_map.insert(origin, true);
 
-    fn build_orbit(&self, orbit_prefix: &mut HashMap<&T::Element,bool> ,element: &T::Element) {
-
-        for generator in self.generators{
-            if let Some(transformed) = self.apply_to(generator, element){
-                if let None = orbit_prefix.insert(transformed,true) {
-                    self.build_orbit(orbit_prefix,transformed)
+        let mut orbit_index = 0;
+        while orbit_index < orbit_vec.len(){
+            for generator in self.generators.iter(){
+                if let Some(transformed) = generator.apply_to(&orbit_vec[orbit_index]){
+                    if let None = orbit_map.insert(transformed,true) {
+                        orbit_vec.push(transformed);
+                    }
                 }
             }
+            orbit_index += 1
         }
+        orbit_vec
+    }
+}
+
+
+#[test]
+fn orbit_test() {
+    let mut schreir = Schreier::new(vec![Permutation::new(vec![1,3,4,6,5,2])]);
+    let mut orbit = schreir.get_orbit(4);
+    assert_eq!(orbit, vec![4, 6, 2, 3]);
+    orbit = schreir.get_orbit(1);
+    println!("{:?}", orbit);
+
+    schreir = Schreier::new(
+        vec![
+            Permutation::new(vec![1,3,4,6,5,2]),
+            Permutation::new(vec![1,2,3,4,5,9,7,8,10,6]),
+            Permutation::new(vec![10,2,3,4,5,6,7,8,1,9]),
+        ]);
+    for i in 1..11{
+        orbit = schreir.get_orbit(i);
+        println!("i:{i} => {:?}", orbit);
     }
 
 }
+
