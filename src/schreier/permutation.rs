@@ -2,7 +2,7 @@ use std::cmp;
 use crate::schreier::group_element::GroupElement;
 pub struct Permutation {
     map: Vec<usize>,
-    size: usize
+    pub size: usize
 }
 
 impl GroupElement for Permutation {
