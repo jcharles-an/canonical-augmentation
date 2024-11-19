@@ -6,6 +6,7 @@ use crate::schreier::permutation::Permutation;
 pub struct PermutationGroup<T>
 {
     generators: Vec<T>,
+    identity: Permutation,
     max_n: usize
 }
 
@@ -42,7 +43,11 @@ impl Group for PermutationGroup<Permutation>{
     }
 
     fn get_identity(&self) -> Self::Element {
-        Permutation::new((1..self.max_n+1).collect())
+        self.identity.clone()
+    }
+
+    fn get_identity_ref(&self) -> &Self::Element {
+        &self.identity
     }
 
     fn get_generators(&self) -> &Vec<Self::Element> {
@@ -52,7 +57,11 @@ impl Group for PermutationGroup<Permutation>{
 impl PermutationGroup<Permutation> {
     pub fn new(generators: Vec<Permutation>) -> PermutationGroup<Permutation>{
         let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
-        PermutationGroup {generators,max_n}
+        PermutationGroup {
+            generators,
+            max_n,
+            identity: Permutation::new((1..max_n+1).collect())
+        }
     }
 }
 

@@ -11,6 +11,7 @@ pub trait Group {
     fn apply_to(element: &Self::Element, target: &Self::Target) -> Option<Self::Target>;
 
     fn get_identity(&self) -> Self::Element;
+    fn get_identity_ref(&self) -> &Self::Element;
 
     fn get_generators(&self) -> &Vec<Self::Element>;
 
