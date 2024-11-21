@@ -10,35 +10,41 @@ where
     group: T
 }
 
+type G = PermutationGroup;
 
+impl Schreier<G>{
 
-impl<T: Group> Schreier<T>{
-
-    pub fn new(generators: T) -> Schreier<T>{
+    pub fn new(generators: G) -> Schreier<G>{
         Schreier{ group: generators }
     }
-    pub fn get_orbit(&self, origin: T::Target) -> Vec<T::Target> {
-        let mut orbit_map = HashMap::new();
+    pub fn get_orbit(&self, origin: <G as Group>::Target) -> Vec<<G as Group>::Target> {
+        //let mut orbit_map = HashMap::new();
         let mut orbit_vec = vec![origin];
+        let mut orbit = vec![0usize;self.group.get_range()];
         let mut traversal = HashMap::new();
         traversal.insert(origin,self.group.get_identity());
         let mut schreier_vector = vec![self.group.get_identity_ref()];
         let mut stab_generators = vec![self.group.get_identity()];
 
         let mut orbit_index = 0;
-        orbit_map.insert(origin, orbit_index);
+        orbit[origin - 1] = origin;
+        //orbit_map.insert(origin, orbit_index);
 
          while orbit_index < orbit_vec.len(){
             for generator in self.group.get_generators(){
-                if let Some(transformed) = T::apply_to(generator,&orbit_vec[orbit_index]){
-                    if let None = orbit_map.insert(transformed,orbit_index) {
+                if let Some(transformed) = G::apply_to(generator, &orbit_vec[orbit_index]){
+
+
+                    if orbit[transformed-1] == 0 {
+                    //if let None = orbit_map.insert(transformed,orbit_index) {
                         orbit_vec.push(transformed);
-                        traversal.insert(transformed, T::operate(generator,&traversal[&orbit_vec[orbit_index]]));
+                        orbit[transformed-1] = orbit_vec[orbit_index];
+                        traversal.insert(transformed, G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
                         schreier_vector.push(generator);
                     } else {
                         let transformed_traversal = traversal.get(&transformed).unwrap();
                         //TODO. This is not the most efficient way to do this
-                        let next_generator = T::operate(&T::get_inverse(&transformed_traversal), &T::operate(generator,&traversal[&orbit_vec[orbit_index]]));
+                        let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
                         stab_generators.push(next_generator)
                     }
                 }

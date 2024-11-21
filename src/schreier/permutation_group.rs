@@ -73,6 +73,10 @@ impl PermutationGroup {
             identity: Permutation::new((1..max_n+1).collect())
         }
     }
+
+    pub fn get_range(&self)->usize{
+        self.max_n
+    }
 }
 
 #[test]
