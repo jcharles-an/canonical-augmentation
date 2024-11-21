@@ -20,7 +20,8 @@ impl<T: Group> Schreier<T>{
     pub fn get_orbit(&self, origin: T::Target) -> Vec<T::Target> {
         let mut orbit_map = HashMap::new();
         let mut orbit_vec = vec![origin];
-        let mut traversal = vec![self.group.get_identity()];
+        let mut traversal = HashMap::new();
+        traversal.insert(origin,self.group.get_identity());
         let mut schreier_vector = vec![self.group.get_identity_ref()];
         let mut stab_generators = vec![self.group.get_identity()];
 
@@ -32,19 +33,19 @@ impl<T: Group> Schreier<T>{
                 if let Some(transformed) = T::apply_to(generator,&orbit_vec[orbit_index]){
                     if let None = orbit_map.insert(transformed,orbit_index) {
                         orbit_vec.push(transformed);
-                        traversal.push(T::operate(generator,&traversal[orbit_index]));
+                        traversal.insert(transformed, T::operate(generator,&traversal[&orbit_vec[orbit_index]]));
                         schreier_vector.push(generator);
                     } else {
-                        let transformed_traversal = traversal.get(*orbit_map.get(&transformed).unwrap()).unwrap();
+                        let transformed_traversal = traversal.get(&transformed).unwrap();
                         //TODO. This is not the most efficient way to do this
-                        let next_generator = T::operate(&T::get_inverse(&transformed_traversal), &T::operate(generator,&traversal[orbit_index]));
+                        let next_generator = T::operate(&T::get_inverse(&transformed_traversal), &T::operate(generator,&traversal[&orbit_vec[orbit_index]]));
                         stab_generators.push(next_generator)
                     }
                 }
             }
             orbit_index += 1
         }
-        for trav in stab_generators.iter(){
+        for trav in traversal.iter(){
             println!("{:?}",trav);
         }
 

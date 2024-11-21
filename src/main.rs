@@ -1,4 +1,3 @@
-use crate::schreier::permutation::Permutation;
 
 mod schreier;
 

@@ -1,18 +1,20 @@
-use std::cmp;
-use crate::schreier::group_element::GroupElement;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 
-pub struct PermutationGroup<T>
+pub struct PermutationGroup
 {
-    generators: Vec<T>,
+    generators: Vec<Permutation>,
     identity: Permutation,
     max_n: usize
 }
 
-impl Group for PermutationGroup<Permutation>{
+impl Group for PermutationGroup{
     type Element = Permutation;
     type Target = usize;
+
+    fn target_to_usize(target: Self::Target) -> usize {
+        target
+    }
 
     fn operate(element_a: &Self::Element, element_b: &Self::Element) -> Self::Element {
         let mut result;
@@ -42,6 +44,10 @@ impl Group for PermutationGroup<Permutation>{
         element.map.get(target - 1 ).map(|&x| x)
     }
 
+    fn is_identity(element: &Self::Element) -> bool {
+        element.map.iter().enumerate().all(|(index, &value)| index + 1 == value)
+    }
+
     fn get_identity(&self) -> Self::Element {
         self.identity.clone()
     }
@@ -50,12 +56,16 @@ impl Group for PermutationGroup<Permutation>{
         &self.identity
     }
 
+    fn get_identity_length(&self) -> usize {
+        self.max_n
+    }
+
     fn get_generators(&self) -> &Vec<Self::Element> {
         &self.generators
     }
 }
-impl PermutationGroup<Permutation> {
-    pub fn new(generators: Vec<Permutation>) -> PermutationGroup<Permutation>{
+impl PermutationGroup {
+    pub fn new(generators: Vec<Permutation>) -> PermutationGroup{
         let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
         PermutationGroup {
             generators,
@@ -67,7 +77,7 @@ impl PermutationGroup<Permutation> {
 
 #[test]
 fn perm_group_test() {
-    let mut permutation_group = PermutationGroup::new(
+    let permutation_group = PermutationGroup::new(
         vec![Permutation::new(vec![1,3,4,6,5,2])]
     );
 
@@ -84,6 +94,11 @@ fn perm_group_test() {
     let permutation2 = Permutation::new(vec![1,3,2]);
     assert_eq!(PermutationGroup::operate(&permutation, &permutation2).map, vec![3,5,1,4,2]);
     assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![2,1,5,4,3]);
+
+    let permutation = Permutation::new(vec![2,4,1,3,5]);
+    let permutation2 = Permutation::new(vec![5,4,3,2,1]);
+    assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![4,2,5,3,1]);
+
 
 
     assert_eq!(permutation_group.get_identity().map, vec![1, 2, 3, 4, 5, 6]);
