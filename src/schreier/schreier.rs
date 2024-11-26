@@ -20,14 +20,14 @@ impl Schreier<G>{
     pub fn get_orbit(&self, origin: <G as Group>::Target) -> Vec<<G as Group>::Target> {
         //let mut orbit_map = HashMap::new();
         let mut orbit_vec = vec![origin];
-        let mut orbit = vec![0usize;self.group.get_range()];
+        let mut orbit = vec![None::<usize>;self.group.get_range()];
         let mut traversal = HashMap::new();
         traversal.insert(origin,self.group.get_identity());
         let mut schreier_vector = vec![self.group.get_identity_ref()];
         let mut stab_generators = vec![self.group.get_identity()];
 
         let mut orbit_index = 0;
-        orbit[origin - 1] = origin;
+        orbit[origin] = Some(origin);
         //orbit_map.insert(origin, orbit_index);
 
          while orbit_index < orbit_vec.len(){
@@ -35,10 +35,10 @@ impl Schreier<G>{
                 if let Some(transformed) = G::apply_to(generator, &orbit_vec[orbit_index]){
 
 
-                    if orbit[transformed-1] == 0 {
+                    if orbit[transformed] == None {
                     //if let None = orbit_map.insert(transformed,orbit_index) {
                         orbit_vec.push(transformed);
-                        orbit[transformed-1] = orbit_vec[orbit_index];
+                        orbit[transformed] = Some(orbit_vec[orbit_index]);
                         traversal.insert(transformed, G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
                         schreier_vector.push(generator);
                     } else {
@@ -64,42 +64,42 @@ impl Schreier<G>{
 fn orbit_test() {
     let mut schreir = Schreier::new(
         PermutationGroup::new(
-            vec![Permutation::new(vec![1,3,4,6,5,2])])
+            vec![Permutation::new(vec![0,2,3,5,4,1])])
     );
-    let mut orbit = schreir.get_orbit(4);
-    assert_eq!(orbit, vec![4, 6, 2, 3]);
+    let mut orbit = schreir.get_orbit(3);
+    assert_eq!(orbit, vec![3, 5, 1, 2]);
 
     schreir = Schreier::new(
         PermutationGroup::new(
         vec![
-            Permutation::new(vec![1,3,4,6,5,2]),
-            Permutation::new(vec![1,2,3,4,5,9,7,8,10,6]),
-            Permutation::new(vec![10,2,3,4,5,6,7,8,1,9]),
+            Permutation::new(vec![0,2,3,5,4,1]),
+            Permutation::new(vec![0,1,2,3,4,8,6,7,9,5]),
+            Permutation::new(vec![9,1,2,3,4,5,6,7,0,8]),
         ]));
 
 
-    assert_eq!(schreir.get_orbit(1), vec![1, 10, 6, 9, 2, 3, 4]);
-    assert_eq!(schreir.get_orbit(2), vec![2, 3, 4, 6, 9, 10, 1]);
-    assert_eq!(schreir.get_orbit(3), vec![3, 4, 6, 2, 9, 10, 1]);
-    assert_eq!(schreir.get_orbit(4), vec![4, 6, 2, 9, 3, 10, 1]);
-    assert_eq!(schreir.get_orbit(5), vec![5]);
-    assert_eq!(schreir.get_orbit(6), vec![6, 2, 9, 3, 10, 1, 4]);
+    assert_eq!(schreir.get_orbit(0), vec![0, 9, 5, 8, 1, 2, 3]);
+    assert_eq!(schreir.get_orbit(1), vec![1, 2, 3, 5, 8, 9, 0]);
+    assert_eq!(schreir.get_orbit(2), vec![2, 3, 5, 1, 8, 9, 0]);
+    assert_eq!(schreir.get_orbit(3), vec![3, 5, 1, 8, 2, 9, 0]);
+    assert_eq!(schreir.get_orbit(4), vec![4]);
+    assert_eq!(schreir.get_orbit(5), vec![5, 1, 8, 2, 9, 0, 3]);
+    assert_eq!(schreir.get_orbit(6), vec![6]);
     assert_eq!(schreir.get_orbit(7), vec![7]);
-    assert_eq!(schreir.get_orbit(8), vec![8]);
-    assert_eq!(schreir.get_orbit(9), vec![9, 10, 1, 6, 2, 3, 4]);
-    assert_eq!(schreir.get_orbit(10), vec![10, 6, 9, 2, 1, 3, 4]);
+    assert_eq!(schreir.get_orbit(8), vec![8, 9, 0, 5, 1, 2, 3]);
+    assert_eq!(schreir.get_orbit(9), vec![9, 5, 8, 1, 0, 2, 3]);
 
     schreir = Schreier::new(
         PermutationGroup::new(
             vec![
-                Permutation::new(vec![1,2,3]),
-                Permutation::new(vec![1,3,4,2]),
+                Permutation::new(vec![0,1,2]),
+                Permutation::new(vec![0,2,3,1]),
             ]));
 
-    assert_eq!(schreir.get_orbit(1), vec![1]);
-    assert_eq!(schreir.get_orbit(2), vec![2, 3, 4]);
-    assert_eq!(schreir.get_orbit(3), vec![3, 4, 2]);
-    assert_eq!(schreir.get_orbit(4), vec![4, 2, 3]);
+    assert_eq!(schreir.get_orbit(0), vec![0]);
+    assert_eq!(schreir.get_orbit(1), vec![1, 2, 3]);
+    assert_eq!(schreir.get_orbit(2), vec![2, 3, 1]);
+    assert_eq!(schreir.get_orbit(3), vec![3, 1, 2]);
 
 }
 

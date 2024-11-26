@@ -35,17 +35,17 @@ impl Group for PermutationGroup{
     fn get_inverse(element: &Self::Element) -> Self::Element {
         let mut result = vec![0;element.size];
         for (index, value) in element.map.iter().enumerate(){
-            result[*value - 1] = index + 1
+            result[*value] = index
         }
         Permutation::new(result)
     }
 
     fn apply_to(element: &Self::Element, target: &Self::Target) -> Option<Self::Target> {
-        element.map.get(target - 1 ).map(|&x| x)
+        element.map.get( *target ).map(|&x| x)
     }
 
     fn is_identity(element: &Self::Element) -> bool {
-        element.map.iter().enumerate().all(|(index, &value)| index + 1 == value)
+        element.map.iter().enumerate().all(|(index, &value)| index == value)
     }
 
     fn get_identity(&self) -> Self::Element {
@@ -70,7 +70,7 @@ impl PermutationGroup {
         PermutationGroup {
             generators,
             max_n,
-            identity: Permutation::new((1..max_n+1).collect())
+            identity: Permutation::new((0..max_n).collect())
         }
     }
 
@@ -82,30 +82,30 @@ impl PermutationGroup {
 #[test]
 fn perm_group_test() {
     let permutation_group = PermutationGroup::new(
-        vec![Permutation::new(vec![1,3,4,6,5,2])]
+        vec![Permutation::new(vec![0,2,3,5,4,1])]
     );
 
-    let mut permutation = Permutation::new(vec![1,3,4,6,5,2]);
-    assert_eq!(PermutationGroup::get_inverse(&permutation).map, vec![1,6,2,3,5,4]);
-    assert_eq!(PermutationGroup::apply_to(&permutation, &1),Some(1));
+    let mut permutation = Permutation::new(vec![0,2,3,5,4,1]);
+    assert_eq!(PermutationGroup::get_inverse(&permutation).map, vec![0,5,1,2,4,3]);
+    assert_eq!(PermutationGroup::apply_to(&permutation, &0),Some(0));
+    assert_eq!(PermutationGroup::apply_to(&permutation,&1),Some(2));
     assert_eq!(PermutationGroup::apply_to(&permutation,&2),Some(3));
-    assert_eq!(PermutationGroup::apply_to(&permutation,&3),Some(4));
 
-    permutation = Permutation::new(vec![3,1,5,4,2]);
-    let permutation2 = Permutation::new(vec![6,2,4,1,5,3]);
-    assert_eq!(PermutationGroup::operate(&permutation, &permutation2).map, vec![6,1,4,3,2,5]);
+    permutation = Permutation::new(vec![2,0,4,3,1]);
+    let permutation2 = Permutation::new(vec![5,1,3,0,4,2]);
+    assert_eq!(PermutationGroup::operate(&permutation, &permutation2).map, vec![5,0,3,2,1,4]);
 
-    let permutation2 = Permutation::new(vec![1,3,2]);
-    assert_eq!(PermutationGroup::operate(&permutation, &permutation2).map, vec![3,5,1,4,2]);
-    assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![2,1,5,4,3]);
+    let permutation2 = Permutation::new(vec![0,2,1]);
+    assert_eq!(PermutationGroup::operate(&permutation, &permutation2).map, vec![2,4,0,3,1]);
+    assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![1,0,4,3,2]);
 
-    let permutation = Permutation::new(vec![2,4,1,3,5]);
-    let permutation2 = Permutation::new(vec![5,4,3,2,1]);
-    assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![4,2,5,3,1]);
-
+    let permutation = Permutation::new(vec![1,3,0,2,4]);
+    let permutation2 = Permutation::new(vec![4,3,2,1,0]);
+    assert_eq!(PermutationGroup::operate(&permutation2, &permutation).map, vec![3,1,4,2,0]);
 
 
-    assert_eq!(permutation_group.get_identity().map, vec![1, 2, 3, 4, 5, 6]);
+
+    assert_eq!(permutation_group.get_identity().map, vec![0, 1, 2, 3, 4, 5]);
 
 
 }
