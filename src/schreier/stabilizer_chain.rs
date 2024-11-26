@@ -137,32 +137,32 @@ fn test_stabilizer_chain(){
 
     let sc = StabilizerChain::new(
         PermutationGroup::new(vec![
-            Permutation::new(vec![2,3,1,4]),
-            Permutation::new(vec![1,3,4,2]),
+            Permutation::new(vec![1,2,0,3]),
+            Permutation::new(vec![0,2,3,1]),
         ]),
-        vec![1,2,3,4],
+        vec![0,1,2,3],
         HashMap::from([
-            (1,Permutation::new(vec![1,2,3,4])),
-            (2,Permutation::new(vec![2,3,1,4])),
-            (3,Permutation::new(vec![3,1,2,4])),
-            (4,Permutation::new(vec![4,1,3,2])),
+            (1,Permutation::new(vec![0,1,2,3])),
+            (2,Permutation::new(vec![1,2,0,3])),
+            (3,Permutation::new(vec![2,0,1,3])),
+            (4,Permutation::new(vec![3,0,2,1])),
         ]),
         Some(Box::new(StabilizerChain::new(
             PermutationGroup::new(vec![
-                Permutation::new(vec![1,3,4,2]),
+                Permutation::new(vec![0,2,3,1]),
             ]),
-            vec![2,3,4],
+            vec![1,2,3],
             HashMap::from([
-                (2,Permutation::new(vec![1,2,3,4])),
-                (3,Permutation::new(vec![1,3,4,2])),
-                (4,Permutation::new(vec![1,4,2,3])),
+                (2,Permutation::new(vec![0,1,2,3])),
+                (3,Permutation::new(vec![0,2,3,1])),
+                (4,Permutation::new(vec![0,3,1,2])),
             ]),
             Some(Box::new(StabilizerChain::<PermutationGroup>::empty()))
         )))
     );
 
-    let permutation = Permutation::new(vec![2,3,1,4]);
-    let permutation2 = Permutation::new(vec![1,3,4,2]);
+    let permutation = Permutation::new(vec![1,2,0,3]);
+    let permutation2 = Permutation::new(vec![0,2,3,1]);
 
     let product = PermutationGroup::operate(&permutation2,&permutation2);
 
@@ -173,7 +173,7 @@ fn test_stabilizer_chain(){
     let fact = sc.factorize(&product);
     println!("{:?} factorizes into {:?}\n", product, fact);
 
-    let fact = sc.factorize(&Permutation::new(vec![1,2,4,3]));
+    let fact = sc.factorize(&Permutation::new(vec![0,1,3,4]));
     println!("{:?} factorizes into {:?}\n", product, fact);
 
 
