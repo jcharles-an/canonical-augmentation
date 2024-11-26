@@ -17,5 +17,8 @@ pub trait Group {
     fn get_identity_length(&self) -> usize;
 
     fn get_generators(&self) -> &Vec<Self::Element>;
+    fn add_generator(&mut self, new_generator: Self::Element);
+
+    fn new_empty()->impl Group;
 
 }

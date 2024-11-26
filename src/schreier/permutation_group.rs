@@ -49,7 +49,7 @@ impl Group for PermutationGroup{
     }
 
     fn get_identity(&self) -> Self::Element {
-        self.identity.clone()
+        Permutation::new((0..self.max_n).collect())
     }
 
     fn get_identity_ref(&self) -> &Self::Element {
@@ -62,6 +62,20 @@ impl Group for PermutationGroup{
 
     fn get_generators(&self) -> &Vec<Self::Element> {
         &self.generators
+    }
+
+    fn add_generator(&mut self, new_generator: Self::Element) {
+        self.generators.push(new_generator);
+        self.max_n += 1;
+        self.identity = Permutation::new((0..self.max_n).collect());
+    }
+
+    fn new_empty() -> PermutationGroup {
+        PermutationGroup {
+            generators: vec![],
+            max_n: 0,
+            identity: Permutation::new(vec![])
+        }
     }
 }
 impl PermutationGroup {

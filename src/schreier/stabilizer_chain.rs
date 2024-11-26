@@ -1,34 +1,45 @@
 use std::collections::HashMap;
+use std::io::Chain;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 
 pub struct StabilizerChain<G:Group>{
-
-    generators: Vec<G::Element>,
+    group: G,
     orbit: Vec<G::Target>,
     transversal: HashMap<G::Target, G::Element>,
     stabilizer: Option<Box<StabilizerChain<G>>>,
 }
 
-impl<G:Group> StabilizerChain<G>{
+type G = PermutationGroup;
 
-    fn new(generators: Vec<G::Element>,
-           orbit: Vec<G::Target>,
-           transversal: HashMap<G::Target, G::Element>,
+impl StabilizerChain<G>{
+
+    fn new(group: G,
+           orbit: Vec<<G as Group>::Target>,
+           transversal: HashMap<<G as Group>::Target, <G as Group>::Element>,
            stabilizer: Option<Box<StabilizerChain<G>>>)->StabilizerChain<G>{
         StabilizerChain{
-            generators,
+            group,
             orbit,
             transversal,
             stabilizer
         }
     }
-    fn factorize(&self,element: &G::Element) -> Option<Vec<&G::Element>> {
-        let mut factorization:Vec<&G::Element> = vec![];
+
+    fn empty()->StabilizerChain<G>{
+        StabilizerChain::<G>::new(
+            G::new_empty(),
+            vec![],
+            HashMap::new(),
+            None,
+        )
+    }
+    fn factorize(&self,element: &<G as Group>::Element) -> Option<Vec<&<G as Group>::Element>> {
+        let mut factorization:Vec<&<G as Group>::Element> = vec![];
         let mut current_stab_chain = self;
         let mut element_placeholder = (*element).clone();
-        while !current_stab_chain.generators.is_empty() {
+        while !current_stab_chain.group.get_generators().is_empty() {
             let origin = current_stab_chain.orbit.first()?;
             let transformed = G::apply_to(&element_placeholder, origin)?;
             let b = current_stab_chain.transversal.get(&transformed)?;
@@ -42,6 +53,82 @@ impl<G:Group> StabilizerChain<G>{
         }
         Some(factorization)
     }
+
+    fn get_stabilizer_chain(&self, generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
+        let mut chain = Self::empty();
+        for generator in generators{
+            self.extend_chain(&mut chain,&generator,generator.map[0]);
+        }
+        chain
+    }
+
+    fn extend_chain(
+        &self,
+        chain: & mut StabilizerChain<G>,
+        g: &<G as Group>::Element,
+        origin: <G as Group>::Target ){
+        if let Some(_) = chain.factorize(g){
+            return;
+        }
+        if chain.group.get_generators().len() == 0 {
+            chain.stabilizer = Some(Box::new(Self::empty()));
+            //TODO: Get rid of this clone
+            chain.group.add_generator(g.clone());
+            let mut transformed = None;
+            while transformed == None {
+                transformed = G::apply_to(g,&origin)
+            }
+            let mut transformed = transformed.unwrap();
+
+            chain.orbit.push(origin);
+            chain.transversal.insert(origin,self.group.get_identity());
+
+            let mut traversal_representative = (*g).clone();
+            while origin != transformed{
+                chain.orbit.push(transformed);
+                chain.transversal.insert(transformed, traversal_representative.clone());
+                transformed = G::apply_to(g,&transformed).unwrap();
+                traversal_representative = G::operate(&traversal_representative,g)
+            }
+            self.extend_chain(chain,&traversal_representative,origin);
+
+        } else {
+            let orbit_len = chain.orbit.len();
+            let mut orbit_index = 0;
+            while orbit_index < orbit_len {
+                self.extend_orbit_or_chain(chain, g,chain.orbit[orbit_index],origin);
+                orbit_index = orbit_index + 1;
+            }
+            //TODO: Get rid of this clone
+            chain.group.add_generator(g.clone());
+            let generators = chain.group.get_generators().clone();
+
+            while orbit_index < chain.orbit.len() {
+                for generator in &generators{
+                    self.extend_orbit_or_chain(chain, generator, chain.orbit[orbit_index],origin);
+                    orbit_index = orbit_index + 1;
+                }
+            }
+        }
+
+    }
+
+    fn extend_orbit_or_chain(&self, chain: & mut StabilizerChain<G>, g: &<G as Group>::Element, orbit_index: usize, origin: <G as Group>::Target){
+        let mut orbit = &mut chain.orbit;
+        let mut traversal = &mut chain.transversal;
+
+        let Some(transformed) = G::apply_to(g,&orbit[orbit_index]) else { todo!() };
+        if !orbit.contains(&transformed){ //TODO: is this contains efficient? Says its O(n)
+            orbit.push(transformed);
+            traversal.insert(transformed, G::operate(g,&traversal[&orbit[orbit_index]]));
+        } else {
+            let transformed_traversal = traversal.get(&transformed).unwrap();
+            //TODO. This is not the most efficient way to do this
+            let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(g,&traversal[&orbit[orbit_index]]));
+            self.extend_chain(chain, &next_generator,origin)
+        }
+    }
+
 }
 
 
@@ -49,10 +136,10 @@ impl<G:Group> StabilizerChain<G>{
 fn test_stabilizer_chain(){
 
     let sc = StabilizerChain::new(
-        vec![
+        PermutationGroup::new(vec![
             Permutation::new(vec![2,3,1,4]),
             Permutation::new(vec![1,3,4,2]),
-        ],
+        ]),
         vec![1,2,3,4],
         HashMap::from([
             (1,Permutation::new(vec![1,2,3,4])),
@@ -61,21 +148,16 @@ fn test_stabilizer_chain(){
             (4,Permutation::new(vec![4,1,3,2])),
         ]),
         Some(Box::new(StabilizerChain::new(
-            vec![
+            PermutationGroup::new(vec![
                 Permutation::new(vec![1,3,4,2]),
-            ],
+            ]),
             vec![2,3,4],
             HashMap::from([
                 (2,Permutation::new(vec![1,2,3,4])),
                 (3,Permutation::new(vec![1,3,4,2])),
                 (4,Permutation::new(vec![1,4,2,3])),
             ]),
-            Some(Box::new(StabilizerChain::<PermutationGroup>::new(
-                vec![],
-                vec![],
-                HashMap::new(),
-                None,
-            )))
+            Some(Box::new(StabilizerChain::<PermutationGroup>::empty()))
         )))
     );
 
