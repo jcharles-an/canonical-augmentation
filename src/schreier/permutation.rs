@@ -1,4 +1,4 @@
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq)]
 pub struct Permutation {
     pub map: Vec<usize>,
     pub size: usize

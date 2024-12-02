@@ -1,6 +1,7 @@
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 
+#[derive(Debug,PartialEq)]
 pub struct PermutationGroup
 {
     generators: Vec<Permutation>,
@@ -65,8 +66,8 @@ impl Group for PermutationGroup{
     }
 
     fn add_generator(&mut self, new_generator: Self::Element) {
+        self.max_n = new_generator.size;
         self.generators.push(new_generator);
-        self.max_n += 1;
         self.identity = Permutation::new((0..self.max_n).collect());
     }
 
