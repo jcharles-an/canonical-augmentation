@@ -43,7 +43,7 @@ impl Schreier<G>{
                         schreier_vector.push(generator);
                     } else {
                         let transformed_traversal = traversal.get(&transformed).unwrap();
-                        //TODO. This is not the most efficient way to do this
+                        //TODO. This is not the most efficient way to do this because is better to just save inverses in the traversal
                         let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
                         stab_generators.push(next_generator)
                     }

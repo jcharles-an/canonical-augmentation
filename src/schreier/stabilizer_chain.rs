@@ -71,6 +71,10 @@ impl StabilizerChain<G>{
         Some(factorization)
     }
 
+    fn test_belonging(&self,element: &<G as Group>::Element) -> bool {
+        self.factorize(element).is_some()
+    }
+
     fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
         let mut chain = Self::empty();
         let first_base_element = 0;
@@ -123,8 +127,8 @@ impl StabilizerChain<G>{
                 transformed = G::apply_to(g,&transformed).unwrap();
                 traversal_representative = G::operate(&traversal_representative,g)
             }
-            let stab = chain.stabilizer.as_mut().unwrap().as_mut();
-            Self::extend_chain(stab,&traversal_representative,origin + 1);
+            //let stab = chain.stabilizer.as_mut().unwrap().as_mut();
+            //Self::extend_chain(stab,&traversal_representative,origin + 1);
 
         } else {
             let orbit_len = chain.orbit.len();
@@ -145,6 +149,7 @@ impl StabilizerChain<G>{
                 orbit_index = orbit_index + 1;
                 current_length = chain.orbit.len();
             }
+            chain.full_chain = true;
         }
 
     }
@@ -159,7 +164,7 @@ impl StabilizerChain<G>{
             traversal.insert(transformed, G::operate(g,&traversal[&orbit[orbit_index]]));
         } else {
             let transformed_traversal = traversal.get(&transformed).unwrap();
-            //TODO. This is not the most efficient way to do this
+            //TODO. This is not the most efficient way to do this, we should be saving inverse in the transversal
             let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(g,&traversal[&orbit[orbit_index]]));
             Self::extend_chain(chain.stabilizer.as_mut().unwrap().as_mut(), &next_generator,origin)
         }
@@ -201,28 +206,37 @@ fn test_stabilizer_chain(){
 
     let permutation = Permutation::new(vec![1,2,0,3]);
     let permutation2 = Permutation::new(vec![0,2,3,1]);
-
-    let product = PermutationGroup::operate(&permutation2,&permutation2);
-
-    let fact = sc.factorize(&permutation);
-    println!("{:?} factorizes into {:?}\n",permutation, fact);
+    let product = PermutationGroup::operate(&permutation,&permutation2);
 
 
     let fact = sc.factorize(&product);
     println!("{:?} factorizes into {:?}\n", product, fact);
 
-    let fact = sc.factorize(&Permutation::new(vec![0,1,3,4]));
-    println!("{:?} factorizes into {:?}\n", product, fact);
 
     let c = StabilizerChain::get_stabilizer_chain(vec![
         Permutation::new(vec![1,2,0,3]),
         Permutation::new(vec![0,2,3,1]),
     ]);
-
-    let e = c.get_order();
-
     assert_eq!(sc,c);
-    println!("{c:?}");
+    //println!("{c:?}");
+    assert_eq!(c.get_order(),12);
+
+    let target = Permutation::new(vec![0,3,1,2]);
+    assert!(c.test_belonging(&target));
+    let target = Permutation::new(vec![1,0,3,2]);
+    assert!(c.test_belonging(&target));
+    let target = Permutation::new(vec![1,3,2,0]);
+    assert!(c.test_belonging(&target));
+    let target = Permutation::new(vec![2,0,1,3]);
+    assert!(c.test_belonging(&target));
+
+
+    let non_belonging = Permutation::new(vec![0,1,3,2]);
+    assert!(!c.test_belonging(&non_belonging));
+    let non_belonging = Permutation::new(vec![0,2,1,3]);
+    assert!(!c.test_belonging(&non_belonging));
+    let non_belonging = Permutation::new(vec![0,3,2,1]);
+    assert!(!c.test_belonging(&non_belonging));
 
 
 }

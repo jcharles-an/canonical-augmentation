@@ -17,6 +17,8 @@ impl Group for PermutationGroup{
         target
     }
 
+
+    /// Operation of permutation composition, applying first element b, then element a. a ° b of a (b( x ))
     fn operate(element_a: &Self::Element, element_b: &Self::Element) -> Self::Element {
         let mut result;
         if element_a.size > element_b.size{
