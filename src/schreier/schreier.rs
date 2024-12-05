@@ -32,21 +32,19 @@ impl Schreier<G>{
 
          while orbit_index < orbit_vec.len(){
             for generator in self.group.get_generators(){
-                if let Some(transformed) = G::apply_to(generator, &orbit_vec[orbit_index]){
+                let transformed = G::apply_to(generator, &orbit_vec[orbit_index]);
 
-
-                    if orbit[transformed] == None {
-                    //if let None = orbit_map.insert(transformed,orbit_index) {
-                        orbit_vec.push(transformed);
-                        orbit[transformed] = Some(orbit_vec[orbit_index]);
-                        traversal.insert(transformed, G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
-                        schreier_vector.push(generator);
-                    } else {
-                        let transformed_traversal = traversal.get(&transformed).unwrap();
-                        //TODO. This is not the most efficient way to do this because is better to just save inverses in the traversal
-                        let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
-                        stab_generators.push(next_generator)
-                    }
+                if orbit[transformed] == None {
+                //if let None = orbit_map.insert(transformed,orbit_index) {
+                    orbit_vec.push(transformed);
+                    orbit[transformed] = Some(orbit_vec[orbit_index]);
+                    traversal.insert(transformed, G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
+                    schreier_vector.push(generator);
+                } else {
+                    let transformed_traversal = traversal.get(&transformed).unwrap();
+                    //TODO. This is not the most efficient way to do this because is better to just save inverses in the traversal
+                    let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(generator, &traversal[&orbit_vec[orbit_index]]));
+                    stab_generators.push(next_generator)
                 }
             }
             orbit_index += 1

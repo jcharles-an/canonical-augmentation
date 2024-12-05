@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::io::Chain;
+use std::ops::Mul;
+use num_bigint::{BigInt, BigUint};
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
@@ -58,7 +60,7 @@ impl StabilizerChain<G>{
         let mut element_placeholder = (*element).clone();
         while !current_stab_chain.group.get_generators().is_empty() {
             let origin = current_stab_chain.orbit.first()?;
-            let transformed = G::apply_to(&element_placeholder, origin)?;
+            let transformed = G::apply_to(&element_placeholder, origin);
             let b = current_stab_chain.transversal.get(&transformed)?;
             element_placeholder = G::operate(&G::get_inverse(b),&element_placeholder,);
             factorization.push(b);
@@ -75,7 +77,7 @@ impl StabilizerChain<G>{
         self.factorize(element).is_some()
     }
 
-    fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
+    pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
         let mut chain = Self::empty();
         let first_base_element = 0;
         for generator in generators{
@@ -86,15 +88,32 @@ impl StabilizerChain<G>{
     }
 
 
-    fn get_order(&self) -> usize{
+    pub(crate) fn get_order(&self) -> BigUint{
         if !self.full_chain {
             //TODO: finish full chain
         }
         let mut sc = self;
-        let mut order = 1;
+        let mut order = BigUint::default();
+        let mut simple_order = 1usize;
+        let mut is_big = false;
         while !sc.group.get_generators().is_empty() {
-            order *= sc.orbit.len();
+            let orbit_len = sc.orbit.len();
+            println!("Orbit len: {}", orbit_len);
+            if is_big {
+                order = order.mul(BigUint::from(orbit_len));
+            } else{
+                if let Some(result) = simple_order.checked_mul(orbit_len) {
+                    simple_order = result;
+                } else{
+                    is_big = true;
+                    order = BigUint::from(simple_order);
+                    order = order.mul(BigUint::from(orbit_len));
+                };
+            }
             sc = sc.stabilizer.as_ref().unwrap().as_ref();
+        }
+        if !is_big {
+            order = BigUint::from(simple_order);
         }
         order
     }
@@ -111,11 +130,10 @@ impl StabilizerChain<G>{
             //TODO: Get rid of this clone
             chain.group.add_generator(g.clone());
             let mut transformed = G::apply_to(g,&origin);
-            while transformed == None {
+            while transformed == origin {
                 origin += 1;
                 transformed = G::apply_to(g,&origin);
             }
-            let mut transformed = transformed.unwrap();
 
             chain.orbit.push(origin);
             chain.transversal.insert(origin,chain.group.get_identity());
@@ -124,7 +142,7 @@ impl StabilizerChain<G>{
             while origin != transformed{
                 chain.orbit.push(transformed);
                 chain.transversal.insert(transformed, traversal_representative.clone());
-                transformed = G::apply_to(g,&transformed).unwrap();
+                transformed = G::apply_to(g,&transformed);
                 traversal_representative = G::operate(&traversal_representative,g)
             }
             //let stab = chain.stabilizer.as_mut().unwrap().as_mut();
@@ -144,7 +162,7 @@ impl StabilizerChain<G>{
             let mut current_length = chain.orbit.len();
             while orbit_index < current_length {
                 for generator in &generators{
-                    Self::extend_orbit_or_chain(chain, generator, chain.orbit[orbit_index],origin + 1);
+                    Self::extend_orbit_or_chain(chain, generator, orbit_index,origin + 1);
                 }
                 orbit_index = orbit_index + 1;
                 current_length = chain.orbit.len();
@@ -158,7 +176,7 @@ impl StabilizerChain<G>{
         let mut orbit = &mut chain.orbit;
         let mut traversal = &mut chain.transversal;
 
-        let Some(transformed) = G::apply_to(g,&orbit[orbit_index]) else { todo!() };
+        let transformed = G::apply_to(g,&orbit[orbit_index]) ;
         if !orbit.contains(&transformed){ //TODO: is this contains efficient? Says its O(n)
             orbit.push(transformed);
             traversal.insert(transformed, G::operate(g,&traversal[&orbit[orbit_index]]));
@@ -219,7 +237,7 @@ fn test_stabilizer_chain(){
     ]);
     assert_eq!(sc,c);
     //println!("{c:?}");
-    assert_eq!(c.get_order(),12);
+    assert_eq!(c.get_order(),BigUint::from(12usize));
 
     let target = Permutation::new(vec![0,3,1,2]);
     assert!(c.test_belonging(&target));
@@ -237,6 +255,65 @@ fn test_stabilizer_chain(){
     assert!(!c.test_belonging(&non_belonging));
     let non_belonging = Permutation::new(vec![0,3,2,1]);
     assert!(!c.test_belonging(&non_belonging));
+
+
+    let u =  Permutation::from_cycles(vec![
+        vec![0, 2, 7, 5],
+        vec![1, 4, 6, 3],
+        vec![8,32,24,16],
+        vec![9,33,25,17],
+        vec![10,34,26,18],
+    ]);
+
+    let l = Permutation::from_cycles(vec![
+        vec![8,10,15,13],
+        vec![9,12,14,11],
+        vec![0,16,40,39],
+        vec![3,19,43,36],
+        vec![5,21,45,34],
+    ]);
+    let f = Permutation::from_cycles(vec![
+        vec![16,18,23,21],
+        vec![17,20,22,19],
+        vec![5,24,42,15],
+        vec![6,27,41,12],
+        vec![7,29,40,10],
+    ]);
+    let r = Permutation::from_cycles(vec![
+        vec![24,26,31,29],
+        vec![25,28,30,27],
+        vec![2,37,42,18],
+        vec![4,35,44,20],
+        vec![7,32,47,23],
+    ]);
+    let b = Permutation::from_cycles(vec![
+        vec![32,34,39,37],
+        vec![33,36,38,35],
+        vec![2, 8,45,31],
+        vec![1,11,46,28],
+        vec![0,13,47,26],
+    ]);
+    let d = Permutation::from_cycles(vec![
+        vec![40,42,47,45],
+        vec![41,44,46,43],
+        vec![13,21,29,37],
+        vec![14,22,30,38],
+        vec![15,23,31,39],
+    ]);
+
+
+
+
+    //let sc = StabilizerChain::get_stabilizer_chain(vec![u,l,f,r,b,d]);
+    let perm = PermutationGroup::operate(&u,&r);
+    println!("perm: {perm:?}\n");
+    let sc = StabilizerChain::get_stabilizer_chain(vec![perm]);
+    let order = sc.get_order();
+    println!("order: {order}");
+    assert_eq!(order,"43252003274489856000".parse().unwrap());
+    //println!("{sc:?}");
+
+
 
 
 }

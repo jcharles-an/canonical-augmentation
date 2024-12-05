@@ -27,10 +27,7 @@ impl Group for PermutationGroup{
             result = element_b.map.clone()
         }
         for (index, value) in element_b.map.iter().enumerate(){
-            result[index] = match Self::apply_to(element_a, value){
-                Some(transformed) => transformed,
-                None => *value
-            }
+            result[index] = Self::apply_to(element_a, value);
         }
         Permutation::new(result)
     }
@@ -43,8 +40,8 @@ impl Group for PermutationGroup{
         Permutation::new(result)
     }
 
-    fn apply_to(element: &Self::Element, target: &Self::Target) -> Option<Self::Target> {
-        element.map.get( *target ).map(|&x| x)
+    fn apply_to(element: &Self::Element, target: &Self::Target) -> Self::Target {
+        element.map.get( *target ).map(|&x| x).unwrap_or(*target)
     }
 
     fn is_identity(element: &Self::Element) -> bool {
@@ -104,9 +101,9 @@ fn perm_group_test() {
 
     let mut permutation = Permutation::new(vec![0,2,3,5,4,1]);
     assert_eq!(PermutationGroup::get_inverse(&permutation).map, vec![0,5,1,2,4,3]);
-    assert_eq!(PermutationGroup::apply_to(&permutation, &0),Some(0));
-    assert_eq!(PermutationGroup::apply_to(&permutation,&1),Some(2));
-    assert_eq!(PermutationGroup::apply_to(&permutation,&2),Some(3));
+    assert_eq!(PermutationGroup::apply_to(&permutation, &0),0);
+    assert_eq!(PermutationGroup::apply_to(&permutation,&1),2);
+    assert_eq!(PermutationGroup::apply_to(&permutation,&2), 3);
 
     permutation = Permutation::new(vec![2,0,4,3,1]);
     let permutation2 = Permutation::new(vec![5,1,3,0,4,2]);

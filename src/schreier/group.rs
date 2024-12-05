@@ -9,7 +9,7 @@ pub trait Group {
 
     fn operate(element_a: &Self::Element, element_b: &Self::Element) -> Self::Element;
     fn get_inverse(element: &Self::Element) -> Self::Element;
-    fn apply_to(element: &Self::Element, target: &Self::Target) -> Option<Self::Target>;
+    fn apply_to(element: &Self::Element, target: &Self::Target) -> Self::Target;
     fn is_identity(element: &Self::Element) -> bool;
 
     fn get_identity(&self) -> Self::Element;
