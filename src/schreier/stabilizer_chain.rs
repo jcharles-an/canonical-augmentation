@@ -2,9 +2,12 @@ use std::collections::HashMap;
 use std::io::Chain;
 use std::ops::Mul;
 use num_bigint::{BigInt, BigUint};
+use rand::Rng;
+use rand::rngs::ThreadRng;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
+use rand::seq::SliceRandom;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct StabilizerChain<G:Group>{
@@ -73,15 +76,15 @@ impl StabilizerChain<G>{
         Some(factorization)
     }
 
-    fn test_belonging(&self,element: &<G as Group>::Element) -> bool {
+    pub fn test_belonging(&self,element: &<G as Group>::Element) -> bool {
         self.factorize(element).is_some()
     }
 
     pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
         let mut chain = Self::empty();
-        let first_base_element = 0;
+        let mut rng = rand::thread_rng();
         for generator in generators{
-            Self::extend_chain(&mut chain,&generator,first_base_element);
+            Self::extend_chain(&mut chain,&generator,&mut rng);
         }
         chain.full_chain = true;
         chain
@@ -121,38 +124,18 @@ impl StabilizerChain<G>{
     fn extend_chain(
         chain: & mut StabilizerChain<G>,
         g: &<G as Group>::Element,
-        mut origin: <G as Group>::Target ){
+        rng: &mut ThreadRng
+    ){
         if let Some(_) = chain.factorize(g){
             return;
         }
         if chain.group.get_generators().len() == 0 {
-            chain.stabilizer = Some(Box::new(Self::empty()));
-            //TODO: Get rid of this clone
-            chain.group.add_generator(g.clone());
-            let mut transformed = G::apply_to(g,&origin);
-            while transformed == origin {
-                origin += 1;
-                transformed = G::apply_to(g,&origin);
-            }
-
-            chain.orbit.push(origin);
-            chain.transversal.insert(origin,chain.group.get_identity());
-
-            let mut traversal_representative = (*g).clone();
-            while origin != transformed{
-                chain.orbit.push(transformed);
-                chain.transversal.insert(transformed, traversal_representative.clone());
-                transformed = G::apply_to(g,&transformed);
-                traversal_representative = G::operate(&traversal_representative,g)
-            }
-            //let stab = chain.stabilizer.as_mut().unwrap().as_mut();
-            //Self::extend_chain(stab,&traversal_representative,origin + 1);
-
-        } else {
+            Self::calculate_single_generator_chain(chain, g,rng);
+        } else { //an orbit already exists
             let orbit_len = chain.orbit.len();
             let mut orbit_index = 0;
             while orbit_index < orbit_len {
-                Self::extend_orbit_or_chain(chain, g,orbit_index,origin + 1);
+                Self::extend_orbit_or_chain(chain, g, orbit_index, rng);
                 orbit_index = orbit_index + 1;
             }
             //TODO: Get rid of this clone
@@ -162,7 +145,7 @@ impl StabilizerChain<G>{
             let mut current_length = chain.orbit.len();
             while orbit_index < current_length {
                 for generator in &generators{
-                    Self::extend_orbit_or_chain(chain, generator, orbit_index,origin + 1);
+                    Self::extend_orbit_or_chain(chain, generator, orbit_index, rng);
                 }
                 orbit_index = orbit_index + 1;
                 current_length = chain.orbit.len();
@@ -172,28 +155,69 @@ impl StabilizerChain<G>{
 
     }
 
-    fn extend_orbit_or_chain( chain: & mut StabilizerChain<G>, g: &<G as Group>::Element, orbit_index: usize, origin: <G as Group>::Target){
+    fn calculate_single_generator_chain(
+        chain: & mut StabilizerChain<G>,
+        g: &<G as Group>::Element,
+        rng: &mut ThreadRng
+    ){
+        let orbit_origin = Self::get_orbit_origin(g,rng);
+        chain.group.add_generator(g.clone());
+        chain.orbit.push(orbit_origin);
+        chain.transversal.insert(orbit_origin, chain.group.get_identity());
+        //init new layer
+        chain.stabilizer = Some(Box::new(Self::empty()));
+
+        let mut next_orbit_element = G::apply_to(g, &orbit_origin);
+
+        let mut traversal_representative = (*g).clone();
+        while orbit_origin != next_orbit_element {
+            chain.orbit.push(next_orbit_element);
+            chain.transversal.insert(next_orbit_element, traversal_representative.clone());
+            next_orbit_element = G::apply_to(g, &next_orbit_element);
+            traversal_representative = G::operate(g, &traversal_representative)
+        }
+        let stab = chain.stabilizer.as_mut().unwrap().as_mut();
+        Self::extend_chain(stab,&traversal_representative,rng);
+    }
+
+    fn extend_orbit_or_chain(
+        chain: & mut StabilizerChain<G>,
+        g: &<G as Group>::Element,
+        orbit_index: usize,
+        rng: &mut ThreadRng
+    ){
         let mut orbit = &mut chain.orbit;
         let mut traversal = &mut chain.transversal;
+        let orbit_element = &orbit[orbit_index];
+        let current_representative = &traversal[orbit_element];
 
-        let transformed = G::apply_to(g,&orbit[orbit_index]) ;
-        if !orbit.contains(&transformed){ //TODO: is this contains efficient? Says its O(n)
-            orbit.push(transformed);
-            traversal.insert(transformed, G::operate(g,&traversal[&orbit[orbit_index]]));
+        let next_orbit_element = G::apply_to(g, orbit_element) ;
+        if !orbit.contains(&next_orbit_element){ //TODO: is this contains efficient? Says its O(n)
+            orbit.push(next_orbit_element);
+            traversal.insert(next_orbit_element, G::operate(g, current_representative));
         } else {
-            let transformed_traversal = traversal.get(&transformed).unwrap();
+            let next_representative = &traversal[&next_orbit_element];
             //TODO. This is not the most efficient way to do this, we should be saving inverse in the transversal
-            let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(g,&traversal[&orbit[orbit_index]]));
-            Self::extend_chain(chain.stabilizer.as_mut().unwrap().as_mut(), &next_generator,origin)
+            let next_generator = G::operate(&G::get_inverse(&next_representative), &G::operate(g, current_representative));
+            Self::extend_chain(chain.stabilizer.as_mut().unwrap().as_mut(), &next_generator,rng)
         }
     }
 
+    fn get_orbit_origin(g: &<G as Group>::Element, rng: &mut ThreadRng) -> <G as Group>::Target {
+        let mut moved = Vec::new();
+        for (index, value) in g.map.iter().enumerate(){
+            if &index != value{
+                moved.push(*value);
+            }
+        }
+        *moved.choose(rng).unwrap()
+    }
 }
 
 
 #[test]
 fn test_stabilizer_chain(){
-
+    /*
     let sc = StabilizerChain::new(
         PermutationGroup::new(vec![
             Permutation::new(vec![1,2,0,3]),
@@ -221,40 +245,45 @@ fn test_stabilizer_chain(){
         ))),
         true
     );
+    */
+
+
 
     let permutation = Permutation::new(vec![1,2,0,3]);
     let permutation2 = Permutation::new(vec![0,2,3,1]);
+
     let product = PermutationGroup::operate(&permutation,&permutation2);
 
+    let sc = StabilizerChain::get_stabilizer_chain(vec![
+        permutation, permutation2,
+    ]);
 
     let fact = sc.factorize(&product);
     println!("{:?} factorizes into {:?}\n", product, fact);
 
-
-    let c = StabilizerChain::get_stabilizer_chain(vec![
-        Permutation::new(vec![1,2,0,3]),
-        Permutation::new(vec![0,2,3,1]),
-    ]);
-    assert_eq!(sc,c);
     //println!("{c:?}");
-    assert_eq!(c.get_order(),BigUint::from(12usize));
+    assert_eq!(sc.get_order(),BigUint::from(12usize));
 
-    let target = Permutation::new(vec![0,3,1,2]);
-    assert!(c.test_belonging(&target));
-    let target = Permutation::new(vec![1,0,3,2]);
-    assert!(c.test_belonging(&target));
-    let target = Permutation::new(vec![1,3,2,0]);
-    assert!(c.test_belonging(&target));
-    let target = Permutation::new(vec![2,0,1,3]);
-    assert!(c.test_belonging(&target));
+    let mut target :Permutation;
+    target = Permutation::new(vec![0,3,1,2]);
+    assert!(sc.test_belonging(&target));
+    target = Permutation::new(vec![1,0,3,2]);
+    assert!(sc.test_belonging(&target));
+    target = Permutation::new(vec![1,3,2,0]);
+    assert!(sc.test_belonging(&target));
+    target = Permutation::new(vec![2,0,1,3]);
+    assert!(sc.test_belonging(&target));
 
 
-    let non_belonging = Permutation::new(vec![0,1,3,2]);
-    assert!(!c.test_belonging(&non_belonging));
-    let non_belonging = Permutation::new(vec![0,2,1,3]);
-    assert!(!c.test_belonging(&non_belonging));
-    let non_belonging = Permutation::new(vec![0,3,2,1]);
-    assert!(!c.test_belonging(&non_belonging));
+    let mut non_belonging : Permutation;
+    non_belonging = Permutation::new(vec![0,1,3,2]);
+    assert!(!sc.test_belonging(&non_belonging));
+    non_belonging = Permutation::new(vec![0,2,1,3]);
+    assert!(!sc.test_belonging(&non_belonging));
+    non_belonging = Permutation::new(vec![0,3,2,1]);
+    assert!(!sc.test_belonging(&non_belonging));
+
+
 
 
     let u =  Permutation::from_cycles(vec![
@@ -304,14 +333,27 @@ fn test_stabilizer_chain(){
 
 
 
-    //let sc = StabilizerChain::get_stabilizer_chain(vec![u,l,f,r,b,d]);
-    let perm = PermutationGroup::operate(&u,&r);
+    let mut perm = PermutationGroup::operate
+        (&u,&r);
+    //perm = PermutationGroup::operate(&l,&perm);
+    //perm = PermutationGroup::operate(&d,&perm);
+
     println!("perm: {perm:?}\n");
+
     let sc = StabilizerChain::get_stabilizer_chain(vec![perm]);
+    println!("sc: {sc:?}\n");
+    let order = sc.get_order();
+    println!("order: {order}\n\n");
+
+
+
+    let sc = StabilizerChain::get_stabilizer_chain(vec![u,l,f,r,b]);
     let order = sc.get_order();
     println!("order: {order}");
     assert_eq!(order,"43252003274489856000".parse().unwrap());
     //println!("{sc:?}");
+
+
 
 
 
