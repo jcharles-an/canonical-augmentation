@@ -1,15 +1,14 @@
 use std::collections::HashMap;
-use std::io::Chain;
+use std::fmt::{Debug, Formatter};
 use std::ops::Mul;
-use num_bigint::{BigInt, BigUint};
-use rand::Rng;
+use num_bigint::{ BigUint};
 use rand::rngs::ThreadRng;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 use rand::seq::SliceRandom;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq)]
 pub struct StabilizerChain<G:Group>{
     group: G,
     orbit: Vec<G::Target>,
@@ -19,6 +18,12 @@ pub struct StabilizerChain<G:Group>{
 }
 
 type G = PermutationGroup;
+
+impl Debug for StabilizerChain<G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "transversal: {:?}\nstabilizer: {:?}",self.transversal, self.stabilizer)
+    }
+}
 
 impl StabilizerChain<G>{
 
@@ -214,6 +219,16 @@ impl StabilizerChain<G>{
     }
 }
 
+
+#[test]
+fn test_schreir_stab() {
+    let sc = StabilizerChain::get_stabilizer_chain(vec![
+        Permutation::from_cycles(vec![vec![0 ,1 ,3 ,2], vec![4,5,7,6]]),
+        Permutation::from_cycles(vec![vec![0 ,1 ,3 ,7 ,6,4], vec![2,5]]),
+    ]);
+
+    println!("{:?}", sc);
+}
 
 #[test]
 fn test_stabilizer_chain(){

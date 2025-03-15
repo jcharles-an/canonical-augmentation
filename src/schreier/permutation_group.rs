@@ -63,6 +63,9 @@ impl Group for PermutationGroup{
     fn get_generators(&self) -> &Vec<Self::Element> {
         &self.generators
     }
+    fn get_generators_as_mut(&mut self) -> &mut Vec<Self::Element> {
+        &mut self.generators
+    }
 
     fn add_generator(&mut self, new_generator: Self::Element) {
         self.max_n = new_generator.size;
@@ -77,6 +80,22 @@ impl Group for PermutationGroup{
             identity: Permutation::new(vec![])
         }
     }
+
+    /*
+    fn generate_group(&self) {//ALGORITHM 6.6 RUN(n, G, USE())
+
+
+    }
+
+    fn generate_by_backtrack(){
+
+    }
+
+    fn process_group_element(&self){
+
+    }
+
+     */
 }
 impl PermutationGroup {
     pub fn new(generators: Vec<Permutation>) -> PermutationGroup{

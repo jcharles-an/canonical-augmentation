@@ -1,3 +1,8 @@
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(non_snake_case)]
+#![allow(refining_impl_trait)]
+
 use crate::schreier::permutation::Permutation;
 use crate::schreier::stabilizer_chain::StabilizerChain;
 

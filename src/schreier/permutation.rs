@@ -1,34 +1,93 @@
 use std::cmp;
+use std::fmt::{Debug, Display, Formatter};
+use bitmaps::Bitmap;
 
-#[derive(Debug,Clone,PartialEq)]
+#[derive(Clone,Eq, Hash, PartialEq)]
 pub struct Permutation {
     pub map: Vec<usize>,
-    pub size: usize
+    pub size: usize,
+    pub type_array: Option<Vec<usize>>,
 }
+
+impl Display for Permutation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}",self.to_cycles())
+    }
+}
+
+impl Debug for Permutation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}",self.to_cycles())
+    }
+}
+
 impl Permutation{
     pub fn new(map: Vec<usize>) -> Permutation{
-        Permutation{size: map.len(), map}
+        Permutation{size: map.len(), map, type_array: None}
     }
 
     pub fn from_cycles(cicles: Vec<Vec<usize>>) -> Permutation{
-        let mut tuples: Vec<Vec<(usize, usize)>> = Vec::new();
         let mut max_cycle_value = 0usize;
         for cicle in cicles.iter(){
-            let mut tuple: Vec<(usize, usize)> = Vec::with_capacity(cicle.len());
             max_cycle_value = cmp::max(max_cycle_value, *cicle.iter().max().unwrap());
-            for window in cicle.windows(2){
-                tuple.push((window[0], window[1]));
-            }
-            tuple.push((*cicle.last().unwrap(), cicle[0]));
-            tuples.push(tuple);
         }
+
         let mut permutation: Vec<usize> = (0..max_cycle_value+1).into_iter().collect();
-        for tuple in tuples.iter(){
-            for i in 0..tuple.len(){
-                permutation[tuple[i].0] = tuple[i].1;
+        for cicle in cicles.iter(){
+            for window in cicle.windows(2){
+                permutation[window[0]] = window[1];
             }
+            permutation[*cicle.last().unwrap()] = cicle[0];
         }
         Permutation::new(permutation)
+    }
+
+    pub fn to_cycles(&self) -> Vec<Vec<usize>>{
+        let n = self.size;
+        let mut visited = Bitmap::<64>::new();
+        let mut cycles = vec![vec![0usize]; 0];
+        for (index, mut value) in self.map.iter().enumerate(){
+            if visited.get(index){
+                continue;
+            }
+            let mut cycle = vec![index];
+            visited.set(index, true);
+            while &index != value {
+                cycle.push(*value);
+                visited.set(*value, true);
+
+                value = &self.map[*value];
+            }
+            if cycle.len() > 1{
+                cycles.push(cycle);
+            }
+        }
+        cycles
+    }
+
+    pub fn get_type(&mut self) -> &[usize]{
+        if self.type_array.is_none(){
+            let mut p = vec![true; self.size];
+            let mut t = vec![0; self.size];
+            let mut l;
+            let mut j;
+            for i in 0..self.size{
+                if p[i]{
+                    l = 1;
+                    j = i;
+                    p[j] = false;
+                    let permuted = self.map[j];
+                    while p[permuted] {
+                        l += 1;
+                        j = permuted;
+                        p[j] = false;
+                    }
+                    t[l] += 1;
+                }
+            }
+            self.type_array = Some(t)
+        }
+        self.type_array.as_ref().unwrap()
     }
 }
 
@@ -36,9 +95,18 @@ impl Permutation{
 fn permutation_test() {
     let permutation = Permutation::from_cycles(vec![vec![0,1,2]]);
     assert_eq!(permutation.map, vec![1,2,0]);
+    assert_eq!(permutation.to_cycles(), vec![vec![0,1,2]]);
+
 
     let permutation = Permutation::from_cycles(vec![vec![1,2,3]]);
     assert_eq!(permutation.map, vec![0,2,3,1]);
+
+    let mut permutation = Permutation::from_cycles(vec![vec![1,2,3], vec![4,7]]);
+    println!("{:?}", permutation.get_type());
+    assert_eq!(permutation.map, vec![0, 2, 3, 1, 7, 5, 6, 4]);
+    assert_eq!(permutation.to_cycles(), vec![vec![1,2,3], vec![4,7]]);
+
+    return;
     let permutation = Permutation::from_cycles(vec![
         vec![0, 2, 7, 5],
         vec![1, 4, 6, 3],
