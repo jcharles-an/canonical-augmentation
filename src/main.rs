@@ -3,12 +3,42 @@
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
 
+use crate::data_structs::graph::Graph;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::stabilizer_chain::StabilizerChain;
 
 mod schreier;
+mod data_structs;
 
-fn main() {
+fn main(){
+    env_logger::init();
+
+
+    let mut aut = crate::schreier::automorphism::Automorphism::new(
+        Graph {
+            ady_matrix: vec![
+                crate::data_structs::bitmaps::from_BE_array(&[0,1,0,1,0,0,0,1]),
+                crate::data_structs::bitmaps::from_BE_array(&[1,0,1,0,1,0,0,0]),
+                crate::data_structs::bitmaps::from_BE_array(&[0,1,0,1,0,0,1,0]),
+                crate::data_structs::bitmaps::from_BE_array(&[1,0,1,0,1,0,0,0]),
+                crate::data_structs::bitmaps::from_BE_array(&[0,1,0,1,0,1,0,0]),
+                crate::data_structs::bitmaps::from_BE_array(&[0,0,0,0,1,0,1,1]),
+                crate::data_structs::bitmaps::from_BE_array(&[0,0,1,0,0,1,0,1]),
+                crate::data_structs::bitmaps::from_BE_array(&[1,0,0,0,0,0,1,0]),
+            ],
+        }
+    );
+
+    let C = aut.cert_1();
+    println!("Cert: {:}", C.into_value());
+    println!("mu: {:?}", aut.mu);
+
+    let C = aut.cert_2();
+    println!("Cert: {:}", C.into_value());
+    println!("mu: {:?}", aut.mu);
+}
+
+fn main_rubik() {
 
     let sc = StabilizerChain::get_stabilizer_chain(vec![
         Permutation::new(vec![1, 2, 3, 0]),
