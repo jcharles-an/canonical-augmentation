@@ -1,7 +1,8 @@
 use bitmaps::Bitmap;
 
-pub const DEGREE: usize = 8;
-pub const N: usize = 8;
+pub const DEGREE: usize = 4;
+//pub const N: usize =  1 << DEGREE;
+pub const N: usize =  8;
 
 pub const N_CERT: usize = N * (N - 1) / 2;
 pub type BM = Bitmap<N>;

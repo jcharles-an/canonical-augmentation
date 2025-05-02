@@ -54,6 +54,7 @@ pub fn get_n_cube_ady_matrix() -> Vec<BM> {
     let n = N;
     let mut ady_matrix = vec![BM::new();n];
     for v in 0..n {
+        ady_matrix[v].set(v, true);
         for i in 0..degree {
             let neighbor = v ^ (1 << i);
             ady_matrix[v].set(neighbor, true);

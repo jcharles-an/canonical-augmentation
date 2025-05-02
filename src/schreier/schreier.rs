@@ -252,7 +252,7 @@ impl Schreier<G>{
 
     }
 
-    fn get_group_order(stab_chain: &Vec<Vec<<G as Group>::Element>>) -> usize{
+    pub fn get_group_order(stab_chain: &Vec<Vec<<G as Group>::Element>>) -> usize{
         stab_chain.iter().map(|x| x.len()).product()
     }
 
