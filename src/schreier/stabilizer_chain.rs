@@ -9,31 +9,31 @@ use crate::schreier::permutation_group::PermutationGroup;
 use rand::seq::SliceRandom;
 
 #[derive(Eq, PartialEq)]
-pub struct StabilizerChain<G:Group>{
+pub struct RecStabilizerChain<G:Group>{
     group: G,
     orbit: Vec<G::Target>,
     transversal: HashMap<G::Target, G::Element>,
-    stabilizer: Option<Box<StabilizerChain<G>>>,
+    stabilizer: Option<Box<RecStabilizerChain<G>>>,
     full_chain: bool
 }
 
 type G = PermutationGroup;
 
-impl Debug for StabilizerChain<G> {
+impl Debug for RecStabilizerChain<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "transversal: {:?}\nstabilizer: {:?}",self.transversal, self.stabilizer)
     }
 }
 
-impl StabilizerChain<G>{
+impl RecStabilizerChain<G>{
 
     fn new(group: G,
            orbit: Vec<<G as Group>::Target>,
            transversal: HashMap<<G as Group>::Target, <G as Group>::Element>,
-           stabilizer: Option<Box<StabilizerChain<G>>>,
+           stabilizer: Option<Box<RecStabilizerChain<G>>>,
            full_chain: bool
-    )->StabilizerChain<G>{
-        StabilizerChain{
+    ) -> RecStabilizerChain<G>{
+        RecStabilizerChain {
             group,
             orbit,
             transversal,
@@ -42,8 +42,8 @@ impl StabilizerChain<G>{
         }
     }
 
-    fn empty()->StabilizerChain<G>{
-        StabilizerChain::<G>::new(
+    fn empty()-> RecStabilizerChain<G>{
+        RecStabilizerChain::<G>::new(
             G::new_empty(),
             vec![],
             HashMap::new(),
@@ -52,8 +52,8 @@ impl StabilizerChain<G>{
         )
     }
 
-    fn init(group: G)->StabilizerChain<G>{
-        StabilizerChain::<G>::new(
+    fn init(group: G)-> RecStabilizerChain<G>{
+        RecStabilizerChain::<G>::new(
             group,
             vec![],
             HashMap::new(),
@@ -85,7 +85,7 @@ impl StabilizerChain<G>{
         self.factorize(element).is_some()
     }
 
-    pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> StabilizerChain<G>{
+    pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> RecStabilizerChain<G>{
         let mut chain = Self::empty();
         let mut rng = rand::thread_rng();
         for generator in generators{
@@ -127,7 +127,7 @@ impl StabilizerChain<G>{
     }
 
     fn extend_chain(
-        chain: & mut StabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G>,
         g: &<G as Group>::Element,
         rng: &mut ThreadRng
     ){
@@ -161,7 +161,7 @@ impl StabilizerChain<G>{
     }
 
     fn calculate_single_generator_chain(
-        chain: & mut StabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G>,
         g: &<G as Group>::Element,
         rng: &mut ThreadRng
     ){
@@ -186,7 +186,7 @@ impl StabilizerChain<G>{
     }
 
     fn extend_orbit_or_chain(
-        chain: & mut StabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G>,
         g: &<G as Group>::Element,
         orbit_index: usize,
         rng: &mut ThreadRng
@@ -222,7 +222,7 @@ impl StabilizerChain<G>{
 
 #[test]
 fn test_schreir_stab() {
-    let sc = StabilizerChain::get_stabilizer_chain(vec![
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![
         Permutation::from_cycles(vec![vec![0 ,1 ,3 ,2], vec![4,5,7,6]]),
         Permutation::from_cycles(vec![vec![0 ,1 ,3 ,7 ,6,4], vec![2,5]]),
     ]);
@@ -269,7 +269,7 @@ fn test_stabilizer_chain(){
 
     let product = PermutationGroup::operate(&permutation,&permutation2);
 
-    let sc = StabilizerChain::get_stabilizer_chain(vec![
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![
         permutation, permutation2,
     ]);
 
@@ -355,14 +355,14 @@ fn test_stabilizer_chain(){
 
     println!("perm: {perm:?}\n");
 
-    let sc = StabilizerChain::get_stabilizer_chain(vec![perm]);
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![perm]);
     println!("sc: {sc:?}\n");
     let order = sc.get_order();
     println!("order: {order}\n\n");
 
 
 
-    let sc = StabilizerChain::get_stabilizer_chain(vec![u,l,f,r,b]);
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![u, l, f, r, b]);
     let order = sc.get_order();
     println!("order: {order}");
     assert_eq!(order,"43252003274489856000".parse().unwrap());

@@ -5,7 +5,7 @@
 
 use crate::data_structs::graph::Graph;
 use crate::schreier::permutation::Permutation;
-use crate::schreier::stabilizer_chain::StabilizerChain;
+use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
 mod schreier;
 mod data_structs;
@@ -40,7 +40,7 @@ fn main(){
 
 fn main_rubik() {
 
-    let sc = StabilizerChain::get_stabilizer_chain(vec![
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![
         Permutation::new(vec![1, 2, 3, 0]),
         Permutation::new(vec![3, 2, 1, 0]),
     ]);
@@ -50,7 +50,7 @@ fn main_rubik() {
 
 
 
-    let sc = StabilizerChain::get_stabilizer_chain(vec![
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![
         Permutation::from_cycles(vec![vec![0, 1, 2]]),
         Permutation::from_cycles(vec![vec![1, 2, 3]]),
     ]);
@@ -110,7 +110,7 @@ fn main_rubik() {
         vec![14,22,30,38],
         vec![15,23,31,39],
     ]);
-    let sc = StabilizerChain::get_stabilizer_chain(vec![u,l,f,r,d]);
+    let sc = RecStabilizerChain::get_stabilizer_chain(vec![u, l, f, r, d]);
 
 
     let order = sc.get_order();

@@ -9,7 +9,7 @@ use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 use crate::schreier::schreier::Schreier;
 use log::{debug, info, trace, warn};
-
+use crate::data_structs::stabilizer_chain::StabChain;
 
 #[derive(Debug)]
 enum CompareRes {
@@ -26,9 +26,7 @@ pub(crate) struct Automorphism {
     N: usize,
 
     pub(crate) mu: Option<Vec<usize>>,
-    schreier: Schreier<PermutationGroup>,
-    stab_chain: Vec<Vec<Permutation>>,
-    stab_chain_base: Permutation,
+    group: PermutationGroup,
 }
 
 impl PartialEq for CompareRes {
@@ -52,10 +50,7 @@ impl Automorphism {
             S: Default::default(),
             N: N,
             mu: None,
-            schreier: Schreier::new(
-                PermutationGroup::new(vec![identity.clone()]), ),
-            stab_chain: vec![vec![]],
-            stab_chain_base: identity,
+            group: PermutationGroup::new(vec![identity.clone()]),
         };
 
         aut
@@ -337,12 +332,12 @@ impl Automorphism {
                 let mut pi_2 = PermutationGroup::operate(&Pi, &PermutationGroup::get_inverse(&Mu));
                 debug!("Will introduce permutation: {}", pi_2.to_string());
                 let mut max_depth = 0;
-                self.schreier.enter_2(n, &mut max_depth, &mut pi_2, &mut self.stab_chain, &self.stab_chain_base);
+                self.group.enter_2( n, &mut max_depth, &mut pi_2 );
                 debug!("Max depth: {}", max_depth);
             }
             debug!("");
         } else {
-            if true || res != Worse {
+            if res != Worse {
                 let mut C = Refined_Partition[l];
                 let mut D = C;
                 let mut R= vec![BM::new(); Refined_Partition.len() + 1];
@@ -357,10 +352,8 @@ impl Automorphism {
                     R[l+1] = D;
                     R[l+1].set(u,false);
                     self.cannon_2(R.clone());
-                    let mut new_base = Permutation::new(self.partition_to_perm(&R));
-                    self.stab_chain =  self.schreier.change_base(n,&mut self.stab_chain,&new_base);
-                    self.stab_chain_base = new_base;
-                    for g in self.stab_chain[l].iter(){
+                    self.group.change_base(Permutation::new(self.partition_to_perm(&R)));
+                    for g in self.group.get_stab_chain().chain[l].iter(){
                         C.set(PermutationGroup::apply_to(g,&u),false);
                     }
                 }
@@ -373,7 +366,6 @@ impl Automorphism {
     // Algorithm 7.10
     pub(crate) fn cert_2(&mut self) -> BMC {
         self.mu = None;
-        self.stab_chain = vec![vec![self.stab_chain_base.clone()]; N];
         self.cannon_2( vec![BM::mask(N)]);
         let mut C = BMC::new();
         if let Some(mu) = &self.mu{
@@ -471,9 +463,9 @@ fn test_automorphism() {
     let C = aut.cert_2();
     println!("Cert: {:}", C.into_value());
     println!("mu: {:?}", Permutation::new(aut.mu.clone().unwrap()).to_cycles());
-    println!("group order: {:}",Schreier::get_group_order(&aut.stab_chain));
+    println!("group order: {:}",&aut.group.get_group_order());
     println!("CHAIN:");
-    for chain in aut.stab_chain{
+    for chain in &aut.group.get_stab_chain().chain{
         println!("{:?}", chain);
     }
 
@@ -497,10 +489,10 @@ fn test_automorphism() {
 
     let C = aut.cert_2();
     println!("Cert: {:}", C.into_value());
-    println!("mu: {:?}", aut.mu);
-    println!("group order: {:}",Schreier::get_group_order(&aut.stab_chain));
+    println!("mu: {:?}", Permutation::new(aut.mu.clone().unwrap()).to_cycles());
+    println!("group order: {:}",&aut.group.get_group_order());
     println!("CHAIN:");
-    for chain in aut.stab_chain{
+    for chain in &aut.group.get_stab_chain().chain{
         println!("{:?}", chain);
     }
 
