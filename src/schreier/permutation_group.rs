@@ -12,7 +12,8 @@ pub struct PermutationGroup
     stab_chain: StabChain<Permutation>,
     identity: Permutation,
     v_3: Vec<usize>,
-    max_n: usize
+    max_n: usize,
+    pub max_depth: usize,
 }
 
 impl Group for PermutationGroup{
@@ -124,6 +125,20 @@ impl PermutationGroup {
             identity: identity.clone(),
             stab_chain: StabChain::new(max_n, identity.clone(),identity.clone()),
             v_3: vec![],
+            max_depth: 0,
+        }
+    }
+
+    pub fn new_with_stab_chain(generators: Vec<Permutation>, stab_chain: StabChain<Permutation>) -> PermutationGroup{
+        let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
+        let identity = Permutation::new((0..max_n).collect());
+        PermutationGroup {
+            generators,
+            max_n,
+            identity: identity.clone(),
+            stab_chain,
+            v_3: vec![],
+            max_depth: 0,
         }
     }
 
@@ -131,7 +146,7 @@ impl PermutationGroup {
 
     // Algorithm 6.5.1
     //Naïve algorithm to generate a full group from their generators
-    fn simple_generate_group(&self){
+    pub fn simple_generate_group(&self){
         let mut counter = 0;
         let mut full_group: HashSet<Permutation> = HashSet::new();
         let mut new = vec![self.get_identity()];
@@ -153,8 +168,8 @@ impl PermutationGroup {
         println!("{} full_group:{:?}", full_group.len() ,full_group);
     }
 
-    // Algorithm 6.6
-    fn run( &mut self ){
+    // Algorithm 6.6 This algorithm creates the group from the shcreier sims representation
+    pub fn run( &mut self ){
         self.run_backtrack(0,self.get_identity(),Self::print_result)
     }
 
@@ -206,13 +221,13 @@ impl PermutationGroup {
     }
 
     // Algorithm 6.9
-    fn generate_stab_chain(&self) -> StabChain<Permutation> {
+    fn generate_stab_chain(&mut self) -> StabChain<Permutation> {
         let n = self.get_range();
         let mut stab_chain = StabChain::new(n,self.get_identity(),self.get_identity());
-        let mut max_depth = 0;
-        for generator in self.get_generators() {
-            let mut generator = generator.clone();
-            self.enter(n, &mut max_depth,&mut generator,0);
+        self.max_depth = 0;
+        for generator in self.generators.clone().into_iter() {
+            let mut generator = generator;
+            self.enter(&mut generator,0);
         }
 
         println!("Stab_chain is:");
@@ -224,17 +239,17 @@ impl PermutationGroup {
     }
 
     // Algorithm 6.9.1
-    fn enter(&self, n: usize, max_depth: &mut usize, generator: &mut Permutation, tier:usize){
+    fn enter(&mut self, generator: &mut Permutation, tier:usize){
         let mut stab_chain = &mut self.generate_stab_chain();
         //Self::print_format(tier);println!("testing: {generator:?}");
         let i = self.test_pertenece( generator );
         //Self::print_format(tier);println!("got: {generator:?} with index {i}");
-        if i == n {
+        if i == self.max_n {
             //println!();
             return;
         }
         //update max depth if needed
-        *max_depth = cmp::max(*max_depth, i);
+        self.max_depth = cmp::max(self.max_depth, i);
         //push multiplied permutation into group i
         stab_chain.chain[i].push(generator.clone());
         //Self::print_format(tier);println!("Introducing in stabchain: {{");
@@ -244,7 +259,7 @@ impl PermutationGroup {
         //Self::print_format(tier);println!("}}");
 
         let generator = &(*generator);
-        let current_max_depth = *max_depth;
+        let current_max_depth = self.max_depth;
         for j in 0..current_max_depth{
             let mut k = 0;
             let len = stab_chain.chain[j].len();
@@ -256,7 +271,7 @@ impl PermutationGroup {
                 }
                 let mut product = Self::operate(generator, h);
                 //Self::print_format(tier);println!("{generator:?} * {h:?} = {product:?}");
-                self.enter(n, max_depth,&mut product, tier + 1);
+                self.enter(&mut product, tier + 1);
                 k += 1;
             }
         }
@@ -265,8 +280,8 @@ impl PermutationGroup {
     }
 
     //Algorithm 6.10
-    fn test_pertenece_2(&self, n: usize, g: &mut Permutation) -> usize{
-        let n = self.get_range();
+    pub fn test_pertenece_2(&self, g: &mut Permutation) -> usize{
+        let n = self.max_n;
         let stab_chain = self.get_stab_chain();
         for i in 0..n{
             let permuted_i = (Self::apply_to(&stab_chain.base, &i));
@@ -291,19 +306,19 @@ impl PermutationGroup {
     }
 
     // Algorithm 6.11
-    pub fn enter_2(&mut self, n: usize, max_depth: &mut usize, generator: &mut Permutation) {
+    pub fn enter_2(&mut self, generator: &mut Permutation) {
 
-        let i = self.test_pertenece_2(n, generator);
-        if i == n {
+        let i = self.test_pertenece_2(generator);
+        if i == self.max_n {
             return;
         }
         //update max depth if needed
-        *max_depth = cmp::max(*max_depth, i);
+        self.max_depth = cmp::max(self.max_depth, i);
         //push multiplied permutation into group i
         self.stab_chain.chain[i].push(generator.clone());
 
         let generator = &(*generator);
-        let current_max_depth = *max_depth;
+        let current_max_depth = self.max_depth;
         for j in 0..current_max_depth{
             let mut k = 0;
             let len = self.stab_chain.chain[j].len();
@@ -315,7 +330,7 @@ impl PermutationGroup {
                 }
                 let mut product = Self::operate(generator, h);
                 //Self::print_format(tier);println!("{generator:?} * {h:?} = {product:?}");
-                self.enter_2(n, max_depth,&mut product);
+                self.enter_2(&mut product);
                 k += 1;
             }
         }
@@ -335,14 +350,13 @@ impl PermutationGroup {
 
     //Algorithm 6.12
     pub fn change_base(&mut self, new_base: Permutation) {
-        let n = self.get_range();
+        let n = self.max_n;
         let mut stab_chain = self.get_stab_chain().clone();
         let mut new_stab_chain = StabChain::new(n, self.get_identity(), new_base );
         self.set_stab_chain(new_stab_chain);
-        let mut max_depth = 0;
         for j in 0..n{
             for g in stab_chain.chain[j].iter_mut() {
-                self.enter_2( n,&mut max_depth,g );
+                self.enter_2( g );
             }
         }
     }

@@ -1,7 +1,8 @@
 use std::cmp::PartialEq;
 use std::ops::{BitAnd, BitOr, BitXor};
 use crate::data_structs::bitmaps;
-use crate::data_structs::bitmaps::{into_set, BM, BMC, N};
+use crate::data_structs::bitmaps::{into_set, BM, BMC};
+use crate::data_structs::consts::{N};
 use crate::data_structs::graph::{get_n_cube_ady_matrix, Graph};
 use crate::schreier::automorphism::CompareRes::{Better, Same, Worse};
 use crate::schreier::group::Group;
@@ -26,7 +27,7 @@ pub(crate) struct Automorphism {
     N: usize,
 
     pub(crate) mu: Option<Vec<usize>>,
-    group: PermutationGroup,
+    pub group: PermutationGroup,
 }
 
 impl PartialEq for CompareRes {
@@ -54,6 +55,10 @@ impl Automorphism {
         };
 
         aut
+    }
+
+    pub fn set_graph(&mut self, graph: Graph) {
+        self.g = graph;
     }
 
     // Algorithm 7.5
@@ -249,8 +254,8 @@ impl Automorphism {
         if Q.len() == n {
             debug!("Res {:?} partition {:?}", res, self.partition_to_perm(&Q));
             let cert = self.get_cert(&pi).into_value();
-            debug!("Cert: {:}", cert);
-            debug!("Cert: {:b}", cert);
+            debug!("Cert: {:?}", cert);
+            //debug!("Cert: {:b}", cert);
             if res == Better {
                 self.mu = Some(pi.clone());
                 let cert = self.get_cert(&pi).into_value();
@@ -291,6 +296,31 @@ impl Automorphism {
     }
 
 
+    pub fn get_naive_partition(&mut self){
+        let n = N;
+        let mut pi = vec![0;n];
+        let mut first_half = BM::new();
+        first_half.set(0, true);
+        let mut second_half = BM::mask(N);
+        second_half.set(0, false);
+        let mut Refined_Partition = self.refine(vec![first_half,second_half]);
+        let mut l = 0;
+        let mut bestExists = (&self.mu).is_some();
+        for (i,q) in Refined_Partition.iter().enumerate(){
+            l = i;
+            if q.len() > 1{
+                break
+            }
+        }
+        pi = self.partition_to_perm(&Refined_Partition);
+        println!("{pi:?}");
+        let mut perm = Permutation::new(pi);
+        self.group.change_base(perm.clone());
+        self.group.test_pertenece_2(&mut perm);
+        let result = self.group.test_pertenece_2(&mut perm);
+        println!("{perm} {result}")
+    }
+
 
     // Algorithm 7.9
     fn cannon_2(&mut self, Partition: Vec<BM>) {
@@ -318,8 +348,8 @@ impl Automorphism {
         if Refined_Partition.len() == n {
             debug!("Res {:?} partition {:?}", res, self.partition_to_perm(&Refined_Partition));
             let cert = self.get_cert(&pi).into_value();
-            debug!("Cert: {:}", cert);
-            debug!("Cert: {:b}", cert);
+            debug!("Cert: {:?}", cert);
+            //debug!("Cert: {:b}", cert);
             if res == Better {
                 self.mu = Some(pi.clone());
                 let cert = self.get_cert(&pi).into_value();
@@ -331,9 +361,9 @@ impl Automorphism {
 
                 let mut pi_2 = PermutationGroup::operate(&Pi, &PermutationGroup::get_inverse(&Mu));
                 debug!("Will introduce permutation: {}", pi_2.to_string());
-                let mut max_depth = 0;
-                self.group.enter_2( n, &mut max_depth, &mut pi_2 );
-                debug!("Max depth: {}", max_depth);
+                self.group.max_depth = 0;
+                self.group.enter_2( &mut pi_2 );
+                debug!("Max depth: {}", self.group.max_depth);
             }
             debug!("");
         } else {
@@ -422,15 +452,7 @@ impl Automorphism {
         new_ady_mat
     }
 
-    pub fn print_ady_mat(ady_mat: &[BM]){
-        for num in ady_mat{
-            let normal = format!("{:08b}", num.into_value());
-            // Reverse the bits in the string
-            let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
-            println!("{}", reversed);
-        }
 
-    }
 
 }
 
@@ -456,12 +478,12 @@ fn test_automorphism() {
 
 
     let B = aut.cert_1();
-    println!("Cert: {:}", B.into_value());
+    println!("Cert: {:?}", B.into_value());
     println!("mu: {:?}", aut.mu);
 
 
     let C = aut.cert_2();
-    println!("Cert: {:}", C.into_value());
+    println!("Cert: {:?}", C.into_value());
     println!("mu: {:?}", Permutation::new(aut.mu.clone().unwrap()).to_cycles());
     println!("group order: {:}",&aut.group.get_group_order());
     println!("CHAIN:");
@@ -475,10 +497,10 @@ fn test_automorphism() {
 
 
     println!("Old mat");
-    Automorphism::print_ady_mat(&ady_mat);
+    Graph::print_ady_mat(&ady_mat);
 
     println!("\nNew mat");
-    Automorphism::print_ady_mat(&new_mat);
+    Graph::print_ady_mat(&new_mat);
 
 
     let mut aut = Automorphism::new(
@@ -488,7 +510,7 @@ fn test_automorphism() {
     );
 
     let C = aut.cert_2();
-    println!("Cert: {:}", C.into_value());
+    println!("Cert: {:?}", C.into_value());
     println!("mu: {:?}", Permutation::new(aut.mu.clone().unwrap()).to_cycles());
     println!("group order: {:}",&aut.group.get_group_order());
     println!("CHAIN:");
@@ -499,11 +521,11 @@ fn test_automorphism() {
     let new_mat = Automorphism::change_ady_mat(&aut.g.ady_matrix ,aut.mu.unwrap());
 
     println!("\nOld mat");
-    Automorphism::print_ady_mat(&aut.g.ady_matrix);
+    Graph::print_ady_mat(&aut.g.ady_matrix);
 
 
     println!("\nNew mat");
-    Automorphism::print_ady_mat(&new_mat);
+    Graph::print_ady_mat(&new_mat);
 
     /*
         let mut B = aut.refine(vec![

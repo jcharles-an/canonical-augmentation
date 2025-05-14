@@ -2,7 +2,7 @@ use std::cmp;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
-use crate::data_structs::bitmaps::N;
+use crate::data_structs::consts::N;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;

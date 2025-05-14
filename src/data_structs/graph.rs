@@ -1,5 +1,6 @@
 use crate::data_structs;
-use crate::data_structs::bitmaps::{BM, BMC, DEGREE, N};
+use crate::data_structs::bitmaps::{BM, BMC, BMConf};
+use crate::data_structs::consts::{DEGREE, N};
 
 #[derive(Clone,Debug)]
 pub struct Graph {
@@ -45,7 +46,35 @@ impl Graph {
         num
     }
 
+    pub fn transpose(ady_matrix: &[BMConf]) -> Vec<BMConf> {
+        let mut transposed_matrix: Vec<BMConf> = vec![BMConf::new(); ady_matrix.len()];
+        for (i,row) in ady_matrix.iter().enumerate(){
+            for bit_index in row {
+                transposed_matrix[bit_index].set(i,true);
+            }
+        }
+        transposed_matrix
+    }
 
+    pub fn print_ady_mat(ady_mat: &[BM]){
+        for num in ady_mat{
+            let normal = format!("{:014b}", num.into_value());
+            // Reverse the bits in the string
+            let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
+            println!("{}", reversed);
+        }
+
+    }
+
+    pub fn print_ady_mat_BMConf(ady_mat: &[BMConf]){
+        for num in ady_mat{
+            let normal = format!("{:09b}", num.into_value());
+            // Reverse the bits in the string
+            let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
+            println!("{}", reversed);
+        }
+
+    }
 }
 
 
@@ -63,6 +92,7 @@ pub fn get_n_cube_ady_matrix() -> Vec<BM> {
     }
     ady_matrix
 }
+
 
 #[test]
 fn graph_test() {
@@ -101,6 +131,6 @@ fn graph_test() {
         data_structs::bitmaps::from_BE_array(&[1,0,0,1,1,1,0]),
     ]);
 
-    println!("{:021b}", d.into_value());
+    println!("{:?}", d.into_value());
 
 }
