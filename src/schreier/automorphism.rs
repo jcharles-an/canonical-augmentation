@@ -19,6 +19,7 @@ enum CompareRes {
     Same
 }
 
+#[derive(Clone)]
 pub(crate) struct Automorphism {
     T: BM,
     pub g: Graph,
@@ -369,7 +370,7 @@ impl Automorphism {
         } else {
             if res != Worse {
                 let mut C = Refined_Partition[l];
-                let mut D = C;
+                let mut original_C = C;
                 let mut R= vec![BM::new(); Refined_Partition.len() + 1];
                 for j in 0..l{
                     R[j] = Refined_Partition[j]
@@ -379,7 +380,7 @@ impl Automorphism {
                 }
                 while let Some(u) = C.first_index() {
                     R[l] = BM::from_value(1<<u);
-                    R[l+1] = D;
+                    R[l+1] = original_C;
                     R[l+1].set(u,false);
                     self.cannon_2(R.clone());
                     self.group.change_base(Permutation::new(self.partition_to_perm(&R)));

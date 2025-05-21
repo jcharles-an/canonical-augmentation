@@ -3,7 +3,12 @@
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
 
+use std::time::Instant;
+use rayon::prelude::*;
 use crate::data_structs::graph::Graph;
+use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
+use crate::n_k_combinatorial::n_k_combinatorial::{launch_parallel, NkCombinatorial};
+use crate::n_k_combinatorial::base_configs::*;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
@@ -14,36 +19,13 @@ mod n_k_combinatorial;
 
 fn main(){
     env_logger::init();
+    let k = 4;
+    let lines = get_n_k_base(16,k);
 
-
-    let mut aut = crate::schreier::automorphism::Automorphism::new(
-        Graph {
-            ady_matrix: vec![
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   1, 1, 1, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   1, 0, 0, 1, 1, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   1, 0, 0, 0, 0, 1, 1]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   0, 1, 0, 1, 0, 1, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   0, 1, 0, 0, 1, 1, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   0, 0, 1, 1, 0, 0, 1]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0,   0, 0, 1, 0, 1, 0, 1]),
-
-                data_structs::bitmaps::from_BE_array(&[1, 1, 1, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[1, 0, 0, 1, 1, 0, 0,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[1, 0, 0, 0, 0, 1, 1,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 1, 0, 1, 0, 1, 0,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 1, 0, 0, 1, 0, 1,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 1, 1, 1, 0, 0,   0, 0, 0, 0, 0, 0, 0]),
-                data_structs::bitmaps::from_BE_array(&[0, 0, 1, 0, 0, 1, 1,   0, 0, 0, 0, 0, 0, 0]),
-            ],
-        }
-    );
-
-    let C = aut.cert_2();
-    println!("Cert: {:?}", C.into_value());
-    println!("aut group size: {:}", aut.group.get_group_order());
-    //println!("generators: {:?}", aut.group.get_stab_chain());
-    println!("mu: {:?}", aut.mu);
+    //get_jobs(lines, k, 6);
+    launch_parallel(lines, k, 6);
 }
+
 
 fn main_rubik() {
 

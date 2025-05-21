@@ -10,6 +10,8 @@ env_logger = "0.10"
 num-bigint = "0.4.6"
 num-integer = "0.1.46"
 rand = "0.8.5"
-
-[profile.test]
+rayon = "1.10.0"
+graph-canon = "0.1.4"
+petgraph = "0.7.1"
+nauty-pet = "0.13.0"
 # inherits = "release"
