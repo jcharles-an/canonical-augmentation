@@ -5,6 +5,7 @@
 
 use std::time::Instant;
 use rayon::prelude::*;
+use crate::data_structs::consts::N_CONF;
 use crate::data_structs::graph::Graph;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
 use crate::n_k_combinatorial::n_k_combinatorial::{launch_parallel, NkCombinatorial};
@@ -20,7 +21,7 @@ mod n_k_combinatorial;
 fn main(){
     env_logger::init();
     let k = 4;
-    let lines = get_n_k_base(16,k);
+    let lines = get_n_k_base(N_CONF,k);
 
     //get_jobs(lines, k, 6);
     launch_parallel(lines, k, 6);

@@ -32,7 +32,7 @@ pub struct NkCombinatorial {
     pub leaf_level: usize,
     pub hashmap: HMap,
     pub hashmaps: Vec<HMap>,
-    pub hashmaps_lock: Arc<RwLock<Vec<HMap>>>,
+    pub hashmaps_lock: Arc<Vec<RwLock<HMap>>>,
     pub early_leaves: Vec<Vec<BMConf>>,
     get_canon: fn(&mut Self)->String,
 
@@ -49,6 +49,10 @@ impl NkCombinatorial {
 
     pub fn new(k: usize, lines: Vec<BMConf>) -> Self {
         let points = Graph::transpose(lines.as_slice());
+        let mut hashmaps_rwlock = vec![];
+        for _ in 0..N_CONF{
+            hashmaps_rwlock.push(RwLock::new(HMap::new()));
+        }
         NkCombinatorial{ k, lines, points,
             leaves_seen: 0,
             vertices_seen: 0,
@@ -57,11 +61,11 @@ impl NkCombinatorial {
             hashmaps: vec![HMap::new(); N_CONF],
             early_leaves: Vec::new(),
             get_canon: Self::nauty_canon,
-            hashmaps_lock: Arc::new(RwLock::new(vec![HMap::new(); N_CONF]))
+            hashmaps_lock: Arc::new(hashmaps_rwlock)
         }
     }
 
-    pub fn new_par(k: usize, lines: Vec<BMConf>, hashmaps_lock: Arc<RwLock<Vec<HMap>>>) -> Self {
+    pub fn new_par(k: usize, lines: Vec<BMConf>, hashmaps_lock: Arc<Vec<RwLock<HMap>>>) -> Self {
         let points = Graph::transpose(lines.as_slice());
         NkCombinatorial{ k, lines, points,
             leaves_seen: 0,
@@ -288,15 +292,15 @@ impl NkCombinatorial {
                 let C = (self.get_canon)(self);
                 let mut is_old_certificate = false;
                 {
-                    let b = self.hashmaps_lock.read().unwrap();
-                    is_old_certificate = b[current_line].contains_key(&C);
+                    let b = self.hashmaps_lock[current_line].read().unwrap();
+                    is_old_certificate = b.contains_key(&C);
                 }
                 if is_old_certificate {
                     debug!("Found iso config");
                 }else {
                     {
-                        let mut a = self.hashmaps_lock.write().unwrap();
-                        a[current_line].insert(C, true);
+                        let mut a = self.hashmaps_lock[current_line].write().unwrap();
+                        a.insert(C, true);
                     }
                     // advance point
                     self.iso_var_backtrack_share(current_line, current_point + 1, 0, interval);
@@ -422,11 +426,11 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) {
             let leaf = &n_k_combinatorial.early_leaves[i];
             let mut n_k_combinatorial = NkCombinatorial::new_par(k, leaf.clone(), hm.clone());
             n_k_combinatorial.iso_var_backtrack_share(leaf_level,0,0,k);
-            println!("Parallel {i} done in {}!", now.elapsed().as_secs());
+            println!("\t\t\t\t\t{i} done in {:?}!", now.elapsed());
         });
 
-    println!("Hashmap:{:?}", hm.read().unwrap().last().unwrap());
-    println!("effective leaves:{:?}", hm.read().unwrap().last().unwrap().len());
+    println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
+    println!("effective leaves:{:?}", hm.last().unwrap().read().unwrap().len());
 
     println!("Elapsed:{:?}", now.elapsed());
 }
@@ -444,7 +448,7 @@ fn test_7_3() {
     println!("Elapsed:{:?}", now.elapsed());
     println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    println!("Hasmap:{:?}", n_k_combinatorial.hashmaps_lock.read().unwrap().last().unwrap());
+    println!("Hasmap:{:?}", n_k_combinatorial.hashmaps_lock.last().unwrap().read().unwrap());
     
     println!();
     let now = Instant::now();
@@ -453,7 +457,7 @@ fn test_7_3() {
     println!("Elapsed:{:?}", now.elapsed());
     println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    println!("Hasmap:{:?}", n_k_combinatorial.hashmaps_lock.read().unwrap().last().unwrap());
+    println!("Hasmap:{:?}", n_k_combinatorial.hashmaps_lock.last().unwrap().read().unwrap());
 }
 
 #[test]
