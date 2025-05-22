@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
 use std::time::Instant;
 use graph_canon::CanonLabeling;
-use log::debug;
+use log::{debug, info};
 use petgraph::Undirected;
 use crate::data_structs;
 use crate::data_structs::bitmaps::{BMConf, BM, BMC};
@@ -29,12 +29,18 @@ pub struct NkCombinatorial {
     pub points: Vec<BMConf>,
     pub leaves_seen: usize,
     pub vertices_seen: usize,
+    pub rejected_branches: usize,
+    pub thread_tag: usize,
     pub leaf_level: usize,
     pub hashmap: HMap,
     pub hashmaps: Vec<HMap>,
     pub hashmaps_lock: Arc<Vec<RwLock<HMap>>>,
     pub early_leaves: Vec<Vec<BMConf>>,
     get_canon: fn(&mut Self)->String,
+    pub read_time: f64,
+    pub read_lock_time: f64,
+    pub insert_time: f64,
+    pub certificate_time: f64,
 
 }
 
@@ -57,25 +63,37 @@ impl NkCombinatorial {
             leaves_seen: 0,
             vertices_seen: 0,
             leaf_level:  N_CONF - 1,
+            rejected_branches: 0,
+            thread_tag:  0,
             hashmap: HMap::new(),
             hashmaps: vec![HMap::new(); N_CONF],
             early_leaves: Vec::new(),
             get_canon: Self::nauty_canon,
-            hashmaps_lock: Arc::new(hashmaps_rwlock)
+            hashmaps_lock: Arc::new(hashmaps_rwlock),
+            read_time: 0.0,
+            read_lock_time: 0.0,
+            certificate_time:0.0,
+            insert_time:0.0,
         }
     }
 
-    pub fn new_par(k: usize, lines: Vec<BMConf>, hashmaps_lock: Arc<Vec<RwLock<HMap>>>) -> Self {
+    pub fn new_par(k: usize, lines: Vec<BMConf>, thread_tag:usize, hashmaps_lock: Arc<Vec<RwLock<HMap>>>) -> Self {
         let points = Graph::transpose(lines.as_slice());
         NkCombinatorial{ k, lines, points,
             leaves_seen: 0,
             vertices_seen: 0,
             leaf_level:  N_CONF - 1,
+            rejected_branches: 0,
+            thread_tag,
             hashmap: HMap::new(),
             hashmaps: vec![HMap::new(); N_CONF],
             early_leaves: Vec::new(),
             get_canon: Self::nauty_canon,
-            hashmaps_lock
+            hashmaps_lock,
+            read_time: 0.0,
+            read_lock_time: 0.0,
+            certificate_time:0.0,
+            insert_time:0.0,
         }
     }
     
@@ -267,7 +285,7 @@ impl NkCombinatorial {
     }
 
 
-    pub fn iso_var_backtrack_share(&mut self, current_line:usize, current_point:usize,point_count:usize, interval: usize) {
+    pub fn iso_var_backtrack_share(&mut self, current_line:usize, current_point:usize,point_count:usize, interval: usize, is_root:bool) {
         //line is full, advance and reset point
         if self.lines[current_line].len() == self.k {
             //last line?
@@ -275,7 +293,7 @@ impl NkCombinatorial {
                 return self.process_leaf_iso();
             }
             //advance line
-            return self.iso_var_backtrack_share(current_line + 1, 0,0,interval);
+            return self.iso_var_backtrack_share(current_line + 1, 0,0,interval, false);
         }
 
         //no more point but line is not full, not a solution
@@ -289,29 +307,44 @@ impl NkCombinatorial {
             //is line isomorphic to previous one?
             if point_count == interval - 1 {
                 //is line isomorphic to previous one?
+                let now = Instant::now();
                 let C = (self.get_canon)(self);
+                self.certificate_time += now.elapsed().as_secs_f64();
                 let mut is_old_certificate = false;
                 {
+                    let now = Instant::now();
                     let b = self.hashmaps_lock[current_line].read().unwrap();
+                    self.read_lock_time += now.elapsed().as_secs_f64();
+                    let now = Instant::now();
                     is_old_certificate = b.contains_key(&C);
+                    self.read_time += now.elapsed().as_secs_f64();
                 }
                 if is_old_certificate {
-                    debug!("Found iso config");
+                    self.rejected_branches += 1;
                 }else {
                     {
+                        let now = Instant::now();
                         let mut a = self.hashmaps_lock[current_line].write().unwrap();
                         a.insert(C, true);
+                        self.insert_time += now.elapsed().as_secs_f64();
                     }
                     // advance point
-                    self.iso_var_backtrack_share(current_line, current_point + 1, 0, interval);
+                    self.iso_var_backtrack_share(current_line, current_point + 1, 0, interval, false);
                 }
             } else {
-                self.iso_var_backtrack_share(current_line, current_point + 1,point_count + 1, interval);
+                self.iso_var_backtrack_share(current_line, current_point + 1,point_count + 1, interval, false);
+                if is_root {
+                    info!("Thread {} finished exploring {} - {}", self.thread_tag, current_point, current_point + 1);
+                }
             }
 
             self.delete_point_line_relation(current_point, current_line);
         }
-        self.iso_var_backtrack_share(current_line, current_point + 1,point_count, interval);
+        if is_root {
+            info!("Thread {} finished point {}", self.thread_tag, current_point);
+        }
+        self.iso_var_backtrack_share(current_line, current_point + 1,point_count, interval, is_root);
+       
 
     }
 
@@ -392,6 +425,22 @@ impl NkCombinatorial {
 
         NkCombinatorial::new(k, lines)
     }
+    
+    pub fn print_times(&self){
+        let whole = self.certificate_time + self.insert_time + self.read_time + self.read_lock_time;
+        println!("\t\t\tcert: {:.2}%, readLock: {:.2}%, read: {:.2}%, insert: {:.2}%",
+                 self.certificate_time / whole * 100.0,
+                 self.read_lock_time / whole * 100.0,
+                 self.read_time / whole * 100.0,
+                 self.insert_time / whole * 100.0,
+        );
+        println!("\t\t\tcert: {:.2}s, readLock: {:.2}s, read: {:.2}s, insert: {:.2}s\n",
+                 self.certificate_time ,
+                 self.read_lock_time,
+                 self.read_time,
+                 self.insert_time,
+        );
+    }
 }
 
 fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
@@ -399,7 +448,7 @@ fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
     n_k_combinatorial.set_leaf_level(leaf_level);
-    n_k_combinatorial.iso_var_backtrack_share(k,0, 0,k);
+    n_k_combinatorial.iso_var_backtrack_share(k,0, 0,k, true);
     let hm = n_k_combinatorial.hashmaps_lock;
 
 
@@ -412,7 +461,7 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) {
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
     n_k_combinatorial.set_leaf_level(leaf_level);
-    n_k_combinatorial.iso_var_backtrack_share(k,0, 0,k);
+    n_k_combinatorial.iso_var_backtrack_share(k,0, 0,k, true);
     let hm = n_k_combinatorial.hashmaps_lock;
 
 
@@ -424,9 +473,18 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) {
             println!("Parallel {i} deployed!");
             let now = Instant::now();
             let leaf = &n_k_combinatorial.early_leaves[i];
-            let mut n_k_combinatorial = NkCombinatorial::new_par(k, leaf.clone(), hm.clone());
-            n_k_combinatorial.iso_var_backtrack_share(leaf_level,0,0,k);
-            println!("\t\t\t\t\t{i} done in {:?}!", now.elapsed());
+            let mut n_k_combinatorial = NkCombinatorial::new_par(k, leaf.clone(),i, hm.clone());
+            n_k_combinatorial.iso_var_backtrack_share(leaf_level + 1,0,0,k, true);
+            println!("\t\t\t{i} done in {:?}, v: {} l:{} r:{}",
+                     now.elapsed(),n_k_combinatorial.vertices_seen,
+                     n_k_combinatorial.leaves_seen, n_k_combinatorial.rejected_branches);
+            n_k_combinatorial.print_times();
+            /*
+            for i in 0..N_CONF{
+                println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
+            }
+           
+             */
         });
 
     println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
@@ -434,6 +492,7 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) {
 
     println!("Elapsed:{:?}", now.elapsed());
 }
+
 
 
 #[test]
@@ -453,7 +512,7 @@ fn test_7_3() {
     println!();
     let now = Instant::now();
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
-    n_k_combinatorial.iso_var_backtrack_share(k,0,0,k);
+    n_k_combinatorial.iso_var_backtrack_share(k,0,0,k, true);
     println!("Elapsed:{:?}", now.elapsed());
     println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);

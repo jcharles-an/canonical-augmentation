@@ -3,7 +3,9 @@
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
 
+use std::env;
 use std::time::Instant;
+use log::{debug, info};
 use rayon::prelude::*;
 use crate::data_structs::consts::N_CONF;
 use crate::data_structs::graph::Graph;
@@ -20,7 +22,14 @@ mod n_k_combinatorial;
 
 fn main(){
     env_logger::init();
-    let k = 4;
+    info!("Starting schreier");
+    let args: Vec<String> = env::args().collect();
+
+    let mut k = 4;
+    if args.len() > 1 {
+        k = args[1].parse::<usize>().unwrap();
+        
+    }
     let lines = get_n_k_base(N_CONF,k);
 
     //get_jobs(lines, k, 6);
