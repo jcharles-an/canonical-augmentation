@@ -1,16 +1,25 @@
-use std::cmp::PartialEq;
-use std::ops::{BitAnd, BitOr, BitXor};
 use crate::data_structs::bitmaps;
 use crate::data_structs::bitmaps::{into_set, BM, BMC};
-use crate::data_structs::consts::{N};
+use crate::data_structs::consts::N;
 use crate::data_structs::graph::{get_n_cube_ady_matrix, Graph};
+use crate::data_structs::nauty_graph::NautyGraph;
+use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::automorphism::CompareRes::{Better, Same, Worse};
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 use crate::schreier::schreier::Schreier;
+use libc::*;
 use log::{debug, info, trace, warn};
-use crate::data_structs::stabilizer_chain::StabChain;
+use nauty_Traces_sys::*;
+use nauty_Traces_sys::{densenauty, empty_graph, nauty_check, optionblk, statsblk, ADDONEEDGE, NAUTYVERSIONID, SETWORDSNEEDED, TRUE, WORDSIZE};
+use std::cmp::PartialEq;
+use std::error::Error;
+use std::io::{self, Write};
+use std::ops::{BitAnd, BitOr, BitXor};
+use std::os::raw::c_int;
+use std::sync::{Arc, RwLock};
+
 
 #[derive(Debug)]
 enum CompareRes {
@@ -454,7 +463,7 @@ impl Automorphism {
     }
 
 
-
+    
 }
 
 
@@ -470,11 +479,10 @@ fn test_automorphism() {
         bitmaps::from_BE_array(&[0, 0, 1, 0, 0, 1, 0, 1]),
         bitmaps::from_BE_array(&[1, 0, 0, 0, 0, 1, 1, 0]),
     ];
-    let mut aut = Automorphism::new(
-        Graph {
-            ady_matrix: ady_mat.clone(),
-        }
-    );
+    let g = Graph {
+        ady_matrix: ady_mat.clone(),
+    };
+    let mut aut = Automorphism::new(g.clone());
 
 
 

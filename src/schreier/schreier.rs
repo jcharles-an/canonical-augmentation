@@ -27,10 +27,13 @@ impl Schreier<G>{
             group: generators,
         }
     }
+    
     pub fn get_orbit(&self, origin: <G as Group>::Target) -> Vec<<G as Group>::Target> {
         //let mut orbit_map = HashMap::new();
         let mut orbit_vec = vec![origin];
         let mut orbit = vec![None::<<G as Group>::Target>;self.group.get_range()];
+        orbit[origin] = Some(origin);
+        
         let mut traversal =  vec![None::<<G as Group>::Element>;self.group.get_range()];
         let mut schreier_vector = SchreierVector{
             list: vec![None::<&<G as Group>::Element>;self.group.get_range()],
@@ -42,21 +45,19 @@ impl Schreier<G>{
         let mut stab_generators = vec![self.group.get_identity()];
 
         let mut orbit_index = 0;
-        orbit[origin] = Some(origin);
-        //orbit_map.insert(origin, orbit_index);
-
          while orbit_index < orbit_vec.len(){
             for generator in self.group.get_generators(){
-                let orbit_element = orbit_vec[orbit_index];
-                let next_orbit_element = G::apply_to(generator, &orbit_element);
-                let traversal_representative = traversal[orbit_element].as_ref().unwrap();
+                let previous_orbit_element = orbit_vec[orbit_index];
+                let next_orbit_element = G::apply_to(generator, &previous_orbit_element);
+                let traversal_representative = traversal[previous_orbit_element].as_ref().unwrap();
 
-                if orbit[next_orbit_element] == None {
+                if orbit[next_orbit_element].is_none() {
                     orbit_vec.push(next_orbit_element);
-                    orbit[next_orbit_element] = Some(orbit_element);
+                    orbit[next_orbit_element] = Some(previous_orbit_element);
                     traversal[next_orbit_element] =  Some(G::operate(generator, traversal_representative));
                     schreier_vector.list[next_orbit_element] =  Some(generator);
                 } else {
+                    
                     let transformed_traversal =  traversal[next_orbit_element].as_ref().unwrap();
                     //TODO. This is not the most efficient way to do this because is better to just save inverses in the traversal
                     let next_generator = G::operate(&G::get_inverse(&transformed_traversal), &G::operate(generator, traversal_representative));
@@ -116,7 +117,7 @@ impl Schreier<G>{
 
 #[test]
 fn orbit_test() {
-    /*
+    
     let mut schreir = Schreier::new(
         PermutationGroup::new(
             vec![Permutation::new(vec![0,2,3,5,4,1])])
@@ -157,7 +158,7 @@ fn orbit_test() {
     assert_eq!(schreir.get_orbit(3), vec![3, 1, 2]);
 
 
-     */
+    
 
 
 }

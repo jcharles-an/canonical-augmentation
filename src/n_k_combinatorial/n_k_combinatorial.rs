@@ -5,9 +5,10 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::Bound::Unbounded;
 use std::sync::{Arc, RwLock};
 use std::sync::mpsc::channel;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use graph_canon::CanonLabeling;
 use log::{debug, info};
+use nauty_pet::canon::IntoCanonNautyDense;
 use petgraph::Undirected;
 use crate::data_structs;
 use crate::data_structs::bitmaps::{BMConf, BM, BMC};
@@ -18,9 +19,10 @@ use crate::schreier::group::Group;
 use rayon::prelude::*;
 use nauty_pet::prelude::*;
 use petgraph::dot::Config::GraphContentOnly;
+use petgraph::dot::Dot;
 use petgraph::prelude::*;
 use crate::n_k_combinatorial::base_configs::get_n_k_base;
-use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
+use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
 use crate::schreier::permutation::Permutation;
 
 pub struct NkCombinatorial {
@@ -172,9 +174,8 @@ impl NkCombinatorial {
         //line is full, advance and reset point
         if self.lines[current_line].len() == self.k {
             //is line isomorphic to previous one?
-            let mut aut = Automorphism::new(self.to_levy_graph());
-            let C = aut.cert_2();
-            if self.hashmaps[current_line].insert(format!("{:?}",C), true).is_some() {
+            let C = (self.get_canon)(self);
+            if self.hashmaps[current_line].insert(format!("{:?}",C), true).is_some()  {
                 debug!("Found iso config");
                 return;
             }
@@ -200,6 +201,59 @@ impl NkCombinatorial {
             self.delete_point_line_relation(current_point, current_line);
         }
         self.iso_backtrack(current_line, current_point + 1);
+
+    }
+
+    pub fn iso_backtrack_share(&mut self, current_line:usize, current_point:usize) {
+        //line is full, advance and reset point
+        if self.lines[current_line].len() == self.k {
+            //is line isomorphic to previous one?
+
+            let now = Instant::now();
+            let C = (self.get_canon)(self);
+            self.certificate_time += now.elapsed().as_secs_f64();
+            let mut is_old_certificate = false;
+            {
+                let now = Instant::now();
+                let b = self.hashmaps_lock[current_line].read().unwrap();
+                self.read_lock_time += now.elapsed().as_secs_f64();
+                let now = Instant::now();
+                is_old_certificate = b.contains_key(&C);
+                self.read_time += now.elapsed().as_secs_f64();
+            }
+            if is_old_certificate {
+                self.rejected_branches += 1;
+                debug!("Found iso config");
+                return;
+            }else {
+                {
+                    let now = Instant::now();
+                    let mut a = self.hashmaps_lock[current_line].write().unwrap();
+                    a.insert(C, true);
+                    self.insert_time += now.elapsed().as_secs_f64();
+                }
+            }
+
+            //last line?
+            if current_line == self.leaf_level {
+                return self.process_leaf_iso();
+            }
+            //advance line
+            return self.iso_backtrack_share(current_line + 1, 0);
+        }
+
+        //no more point but line is not full, not a solution
+        if current_point == N_CONF{
+            return;
+        }
+
+        self.vertices_seen += 1;
+        if self.add_point_line_relation(current_point, current_line){
+            // advance point
+            self.iso_backtrack_share(current_line, current_point + 1);
+            self.delete_point_line_relation(current_point, current_line);
+        }
+        self.iso_backtrack_share(current_line, current_point + 1);
 
     }
 
@@ -354,8 +408,8 @@ impl NkCombinatorial {
         let C = aut.cert_2();
         if self.hashmap.insert(format!("{:?}",C), true).is_none() {
             debug!("Found new config");
-            println!("Found new config");
-            Graph::print_ady_mat_BMConf(self.lines.as_slice());
+            //println!("Found new config");
+            //Graph::print_ady_mat_BMConf(self.lines.as_slice());
         }
     }
 
@@ -443,7 +497,7 @@ impl NkCombinatorial {
     }
 }
 
-fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
+pub fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
     let now = Instant::now();
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
@@ -456,41 +510,48 @@ fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
 }
 
-pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) {
+pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Duration {
     let now = Instant::now();
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
     n_k_combinatorial.set_leaf_level(leaf_level);
-    n_k_combinatorial.iso_var_backtrack_share(k,0, 0,k, true);
+    n_k_combinatorial.iso_backtrack_share(0,0);
     let hm = n_k_combinatorial.hashmaps_lock;
 
 
-    println!("Seen leaves:{}", n_k_combinatorial.early_leaves.len());
-    println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
+    println!("Task to parallelize:{}", n_k_combinatorial.early_leaves.len());
+    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
 
     (0..n_k_combinatorial.early_leaves.len()).into_par_iter().for_each(|i|
         {
-            println!("Parallel {i} deployed!");
+           // println!("Parallel {i} deployed!");
             let now = Instant::now();
             let leaf = &n_k_combinatorial.early_leaves[i];
             let mut n_k_combinatorial = NkCombinatorial::new_par(k, leaf.clone(),i, hm.clone());
-            n_k_combinatorial.iso_var_backtrack_share(leaf_level + 1,0,0,k, true);
+            n_k_combinatorial.set_canon_method(Nauty);
+            n_k_combinatorial.iso_backtrack_share(leaf_level + 1,0);
+
+            /*
             println!("\t\t\t{i} done in {:?}, v: {} l:{} r:{}",
                      now.elapsed(),n_k_combinatorial.vertices_seen,
                      n_k_combinatorial.leaves_seen, n_k_combinatorial.rejected_branches);
             n_k_combinatorial.print_times();
-            /*
+
             for i in 0..N_CONF{
                 println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
             }
-           
-             */
-        });
 
-    println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
+             */
+           
+
+        });
+    let elapsed = now.elapsed();
+
+    //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
     println!("effective leaves:{:?}", hm.last().unwrap().read().unwrap().len());
 
-    println!("Elapsed:{:?}", now.elapsed());
+    println!("Elapsed:{:?}", elapsed);
+    elapsed
 }
 
 
@@ -575,7 +636,7 @@ fn test_7_3_iso() {
 fn test_9_3() {
     env_logger::init();
     let k = 3;
-    let lines = get_n_k_base(9, k);
+    let lines = get_n_k_base(N_CONF, k);
 
     let now = Instant::now();
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
@@ -586,11 +647,11 @@ fn test_9_3() {
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
     println!("Hasmap:{:?}", n_k_combinatorial.hashmaps.last().unwrap());
     println!();
-    
+    return;
     let now = Instant::now();
-    let mut n_k_combinatorial = NkCombinatorial::new(3, lines.clone());
+    let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
-    n_k_combinatorial.iso_var_backtrack(3,0,0,3);
+    n_k_combinatorial.iso_var_backtrack(k,0,0,k);
     println!("Elapsed:{:?}", now.elapsed());
     println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
@@ -894,7 +955,42 @@ fn test_petgraph(){
 
     println!("{:?}",hm.len());
     println!("{:?} {:?}",C,C_2);
+}
 
+#[test]
+fn test_canon() {
 
+    let mut g = petgraph::Graph::new_undirected();
 
+    for _ in 0..5{
+        g.add_node(());
+    }
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(3),());
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(2),());
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(1),());
+    
+    
+    let gen = g.clone().try_into_autom_group().unwrap();
+
+    let g_1 = CanonGraph::from(g);
+    println!("{:?}", Dot::new(&*g_1));
+}
+
+#[test]
+fn test_nauty() {
+
+    let mut g = petgraph::Graph::new_undirected();
+
+    for _ in 0..5{
+        g.add_node(());
+    }
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(3),());
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(2),());
+    g.add_edge(NodeIndex::new(4), NodeIndex::new(1),());
+    
+    
+    let gen = g.clone().try_into_autom_group().unwrap();
+
+    let g_1 = CanonGraph::from(g);
+    println!("{:?}", Dot::new(&*g_1));
 }

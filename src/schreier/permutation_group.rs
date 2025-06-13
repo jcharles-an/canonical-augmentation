@@ -47,9 +47,11 @@ impl Group for PermutationGroup{
         Permutation::new(result)
     }
 
-    fn apply_to(element: &Permutation, target: &Self::Target) -> Self::Target {
+    fn apply_to(element: &Permutation, target: &usize) -> usize {
         element.map.get( *target ).map(|&x| x).unwrap_or(*target)
     }
+
+   
 
     fn is_identity(element: &Permutation) -> bool {
         element.map.iter().enumerate().all(|(index, &value)| index == value)
@@ -142,6 +144,11 @@ impl PermutationGroup {
         }
     }
 
+
+    pub fn apply_to_vec(element: &Permutation, targets: &[usize]) -> Vec<usize> {
+        targets.iter().map( |target| PermutationGroup::apply_to(element,target) ).collect()
+    }
+    
     //BOOK IMPLEMENTATIONS
 
     // Algorithm 6.5.1
@@ -165,7 +172,7 @@ impl PermutationGroup {
                 }
             }
         }
-        println!("{} full_group:{:?}", full_group.len() ,full_group);
+        println!("full_group with length {}:\n{:?}", full_group.len() ,full_group);
     }
 
     // Algorithm 6.6 This algorithm creates the group from the shcreier sims representation

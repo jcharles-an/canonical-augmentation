@@ -1,4 +1,5 @@
-use crate::data_structs;
+use nauty_Traces_sys::{empty_graph, graph, ADDONEEDGE, SETWORDSNEEDED};
+use crate::{data_structs};
 use crate::data_structs::bitmaps::{BM, BMC, BMConf};
 use crate::data_structs::consts::{DEGREE, N};
 
@@ -58,7 +59,7 @@ impl Graph {
 
     pub fn print_ady_mat(ady_mat: &[BM]){
         for num in ady_mat{
-            let normal = format!("{:014b}", num.into_value());
+            let normal = format!("{:08b}", num.into_value());
             // Reverse the bits in the string
             let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
             println!("{}", reversed);
@@ -73,8 +74,19 @@ impl Graph {
             let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
             println!("{}", reversed);
         }
-
     }
+    
+    
+    pub fn add_edge(&mut self, v: usize,w: usize){
+        self.ady_matrix[v].set(w,true);
+        self.ady_matrix[w].set(v,true);
+    }
+    pub fn remove_edge(&mut self, v: usize,w: usize){
+        self.ady_matrix[v].set(w,false);
+        self.ady_matrix[w].set(v,false);
+    }
+    
+    
 }
 
 

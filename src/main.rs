@@ -9,23 +9,28 @@ use log::{debug, info};
 use rayon::prelude::*;
 use crate::data_structs::consts::N_CONF;
 use crate::data_structs::graph::Graph;
-use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
-use crate::n_k_combinatorial::n_k_combinatorial::{launch_parallel, NkCombinatorial};
+use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
+use crate::n_k_combinatorial::n_k_combinatorial::{get_jobs, launch_parallel, NkCombinatorial};
 use crate::n_k_combinatorial::base_configs::*;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
+use nauty_Traces_sys::*;
+use std::ffi::{c_char, CString};
+use std::ptr;
+
+
 mod schreier;
 mod data_structs;
 mod n_k_combinatorial;
 
-fn main(){
+fn main_2(){
     env_logger::init();
     info!("Starting schreier");
     let args: Vec<String> = env::args().collect();
 
-    let mut k = 4;
+    let mut k = 3;
     if args.len() > 1 {
         k = args[1].parse::<usize>().unwrap();
         
@@ -33,7 +38,39 @@ fn main(){
     let lines = get_n_k_base(N_CONF,k);
 
     //get_jobs(lines, k, 6);
-    launch_parallel(lines, k, 6);
+    /*
+    println!("No ISO prune");
+    let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
+    n_k_combinatorial.set_canon_method(Nauty);
+    let now = Instant::now();
+    n_k_combinatorial.backtrack(k,0);
+    let elapsed_1 = now.elapsed();
+    println!("Elapsed:{:?}", elapsed_1);
+    println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
+    println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
+    println!("Non-isomorphic solutions:{:?}", n_k_combinatorial.hashmap.len());
+    
+
+
+    
+
+    println!("\n\nSequential ISO prune");
+    let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
+    n_k_combinatorial.set_canon_method(Nauty);
+    let now = Instant::now();
+    n_k_combinatorial.iso_backtrack(k,0);
+    let elapsed_2 = now.elapsed();
+    println!("Elapsed:{:?}", elapsed_2);
+    println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
+    println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
+    println!("Non-isomorphic solutions:{:?}", n_k_combinatorial.hashmap.len());
+
+    */
+
+    println!("\n\nParallel ISO prune");
+    let elapsed = launch_parallel(lines,k,6);
+    // println!("\n\nTime after parallelization: {:.4}%", (elapsed.as_secs_f64() / elapsed_2.as_secs_f64()) * 100.0);
+    
 }
 
 
@@ -116,3 +153,8 @@ fn main_rubik() {
     println!("rubik order according to literature: \n43252003274489856000\n",);
     println!("rubik order: \n{}",order);
 }
+
+
+
+
+
