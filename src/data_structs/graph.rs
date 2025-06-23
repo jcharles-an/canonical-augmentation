@@ -1,7 +1,9 @@
 use nauty_Traces_sys::{empty_graph, graph, ADDONEEDGE, SETWORDSNEEDED};
+use petgraph::graph::NodeIndex;
+use petgraph::Undirected;
 use crate::{data_structs};
 use crate::data_structs::bitmaps::{BM, BMC, BMConf};
-use crate::data_structs::consts::{DEGREE, N};
+use crate::data_structs::consts::{DEGREE, N, N_CONF};
 
 #[derive(Clone,Debug)]
 pub struct Graph {
@@ -85,7 +87,84 @@ impl Graph {
         self.ady_matrix[v].set(w,false);
         self.ady_matrix[w].set(v,false);
     }
+
+
+    pub fn to_pet_graph(&self) -> petgraph::Graph::<(), (), Undirected> {
+        let mut g = petgraph::Graph::new_undirected();
+        let n = self.ady_matrix.len();
+        for _ in 0..n {
+            g.add_node(());
+        }
+        for (l,line) in self.ady_matrix.iter().enumerate(){
+            for p in line {
+                g.add_edge(NodeIndex::new(p), NodeIndex::new(l),());
+            }
+        }
+        g
+    }
+
+    pub fn to_pet_levy_graph(&self) -> petgraph::Graph::<usize, (), Undirected> {
+        let mut g = petgraph::Graph::new_undirected();
+        let n = self.ady_matrix.len();
+        for _ in 0..n/2 {
+            g.add_node(0);
+        }
+        for _ in n/2..n {
+            g.add_node(1);
+        }
+        for (l,line) in self.ady_matrix.iter().enumerate().skip(n/2) {
+            for p in line {
+                g.add_edge(NodeIndex::new(p), NodeIndex::new(l),());
+            }
+        }
+        g
+    }
     
+    pub fn custom_print(&self) -> String {
+        let graph = self.to_pet_graph();
+        let mut edge_list: Vec<(usize, usize)> = Vec::new();
+
+        for edge_idx in graph.edge_indices() {
+            let (u, v) = graph.edge_endpoints(edge_idx).unwrap();
+            let u_idx = u.index(); // Get the integer index of the node
+            let v_idx = v.index(); // Get the integer index of the node
+
+            // Normalize the edge pair: always (smaller_index, larger_index) for undirected graphs.
+            // This is important for consistent sorting and to avoid duplicate entries for the same edge.
+            if u_idx < v_idx {
+                edge_list.push((u_idx, v_idx));
+            } else {
+                edge_list.push((v_idx, u_idx));
+            }
+        }
+
+        //    b. Sort the collected edge list.
+        //       This will sort primarily by the first element (smaller vertex),
+        //       and then by the second element (larger vertex) if the first elements are equal.
+        edge_list.sort_unstable(); // `sort_unstable` is often faster if order of equal elements doesn't matter
+
+        // If you explicitly wanted to sort only by the smaller vertex and *then* by something else
+        // or didn't care about the second vertex, you'd use `sort_by_key`:
+        // edge_list.sort_by_key(|&(u, _)| u);
+
+        // 3. Manually construct the DOT string
+        let mut dot_output = String::new();
+        dot_output.push_str("graph G {\n");
+        dot_output.push_str("  node [shape=circle];\n"); // Optional: common node styling
+
+        // Add nodes explicitly. petgraph NodeIndex starts from 0 up to node_count - 1
+        //for i in 0..graph.node_count() {
+        //    dot_output.push_str(&format!("  {};\n", i));
+        //}
+
+        // Add edges from the sorted list
+        for (u, v) in edge_list.iter() {
+            dot_output.push_str(&format!("  {} -- {};\n", u, v));
+        }
+
+        dot_output.push_str("}\n");
+        dot_output
+    }
     
 }
 

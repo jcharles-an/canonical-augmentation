@@ -137,29 +137,7 @@ fn test_automorphism() {
     };
     
     ////////////////////////////////////////////////
-    let current_line = 0;
-    let gen = NautyGraph::get_aut_generators(&g).unwrap();
-    println!("{:?}", gen);
     
-    let schreier = Schreier::from_generators(gen);
-    let range = 8;
-    let S = (4..range).collect::<Vec<usize>>();
-    let k = 2;
-    let mut prefixes_holder = Schreier::get_S_choose_k_in_G(schreier.clone(), range, &S, k);
-
-    println!("Subsets: {:?}", prefixes_holder);
-    
-    for prefix in prefixes_holder {
-        for w in &prefix{
-            g.add_edge(current_line, *w)
-        }
-        Graph::print_ady_mat(g.ady_matrix.as_slice());
-        for w in &prefix{
-            g.remove_edge(current_line, *w)
-        }
-        println!();
-        
-    }
     
     //schreier.group.simple_generate_group();
     

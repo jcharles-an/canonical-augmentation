@@ -14,7 +14,7 @@ struct SchreierVector<T,U>{
 
 pub struct Data{
     orbit: Vec<usize>,
-    stab_generators: Vec<Permutation>,
+    pub(crate) stab_generators: Vec<Permutation>,
     transversal: Vec<Option<Permutation>>,
 }
 
@@ -37,17 +37,17 @@ impl Schreier{
         }
     }
 
-    pub fn get_orbit(&self, origin: usize) -> Data {
+    pub fn get_orbit(&self, origin: usize, n: usize) -> Data {
         //let mut orbit_map = HashMap::new();
         let mut orbit_vec = vec![origin];
-        let mut orbit = vec![None::<usize>;self.group.get_range()];
+        let mut orbit = vec![None::<usize>;n];
         orbit[origin] = Some(origin);
 
-        let mut traversal =  vec![None;self.group.get_range()];
+        let mut traversal =  vec![None;n];
         traversal[origin] = Some(self.group.get_identity());
         
         let mut schreier_vector = SchreierVector{
-            list: vec![None::<&Permutation>;self.group.get_range()],
+            list: vec![None::<&Permutation>;n],
             origin,
         };
         
@@ -139,7 +139,7 @@ impl Schreier{
         let mut local_available_M = free_M;
         let mut m_index = 0;
         while local_available_M&1 == 1 && local_available_M != 0 {
-            let data = schreier.get_orbit(l);
+            let data = schreier.get_orbit(l, schreier.group.get_range());
             let transporter =  data.transversal[m_index].as_ref();
             if transporter.is_none() {
                 continue;
@@ -157,7 +157,7 @@ impl Schreier{
         let n = L.len();
         let mut g = schreier.group.get_identity();
         for i in 0..n{
-            let data = schreier.get_orbit(PermutationGroup::apply_to(&g,&M[i]));
+            let data = schreier.get_orbit(PermutationGroup::apply_to(&g,&M[i]), n);
             let g1 = data.transversal[L[i]].as_ref()?;
             g = PermutationGroup::operate(&g,g1);
             schreier = Schreier::from_generators(data.stab_generators)
@@ -185,7 +185,7 @@ impl Schreier{
 
         for i in current_index..n {
             if (local_available_M >> i)&1 == 1  {
-                let mut data = schreier.get_orbit(i);
+                let mut data = schreier.get_orbit(i, n);
                 // println!("Orbit: {:?}", data.orbit);
                 let orbit_rep = data.orbit.first().unwrap();
                 prefix.push(*orbit_rep);
@@ -336,19 +336,19 @@ fn orbit_test_2() {
     let range = schreier.group.get_range();
     let k = 3;
     let origin = 0;
-    let data = schreier.get_orbit(origin);
+    let data = schreier.get_orbit(origin, range);
     println!("{origin} has orbit: {:?}", data.orbit);
     
     let mut schreier = Schreier::from_generators(data.stab_generators);
     schreier.group.simple_generate_group();
     let origin = 2;
-    let data = schreier.get_orbit(origin);
+    let data = schreier.get_orbit(origin, range);
     println!("{origin} has orbit: {:?}", data.orbit);
 
     let mut schreier = Schreier::from_generators(data.stab_generators);
     schreier.group.simple_generate_group();
     let origin = 3;
-    let data = schreier.get_orbit(origin);
+    let data = schreier.get_orbit(origin, range);
     println!("{origin} has orbit: {:?}", data.orbit);
   
 }
@@ -356,14 +356,15 @@ fn orbit_test_2() {
 #[test]
 fn orbit_test() {
 
-    let mut schreir = Schreier::new(
+    let mut schreier = Schreier::new(
         PermutationGroup::new(
             vec![Permutation::new(vec![0,2,3,5,4,1])])
     );
-    let mut data = schreir.get_orbit(3);
+    let n = schreier.group.get_range();
+    let mut data = schreier.get_orbit(3, n);
     assert_eq!(data.orbit, vec![3, 5, 1, 2]);
 
-    schreir = Schreier::new(
+    schreier = Schreier::new(
         PermutationGroup::new(
             vec![
                 Permutation::new(vec![0,2,3,5,4,1]),
@@ -371,54 +372,55 @@ fn orbit_test() {
                 Permutation::new(vec![9,1,2,3,4,5,6,7,0,8]),
             ]));
     
-    let data = schreir.get_orbit(0);
+    let data = schreier.get_orbit(0, n);
     assert_eq!(data.orbit, vec![0, 9, 5, 8, 1, 2, 3]);
     
-    let data = schreir.get_orbit(1);
+    let data = schreier.get_orbit(1, n);
     assert_eq!(data.orbit, vec![1, 2, 3, 5, 8, 9, 0]);
     
-    let data = schreir.get_orbit(2);
+    let data = schreier.get_orbit(2, n);
     assert_eq!(data.orbit, vec![2, 3, 5, 1, 8, 9, 0]);
     
-    let data = schreir.get_orbit(3);
+    let data = schreier.get_orbit(3, n);
     assert_eq!(data.orbit, vec![3, 5, 1, 8, 2, 9, 0]);
     
-    let data = schreir.get_orbit(4);
+    let data = schreier.get_orbit(4, n);
     assert_eq!(data.orbit, vec![4]);
     
-    let data = schreir.get_orbit(5);
+    let data = schreier.get_orbit(5, n);
     assert_eq!(data.orbit, vec![5, 1, 8, 2, 9, 0, 3]);
     
-    let data = schreir.get_orbit(6);
+    let data = schreier.get_orbit(6, n);
     assert_eq!(data.orbit, vec![6]);
     
-    let data = schreir.get_orbit(7);
+    let data = schreier.get_orbit(7, n);
     assert_eq!(data.orbit, vec![7]);
     
-    let data = schreir.get_orbit(8);
+    let data = schreier.get_orbit(8, n);
     assert_eq!(data.orbit, vec![8, 9, 0, 5, 1, 2, 3]);
     
-    let data = schreir.get_orbit(9);
+    let data = schreier.get_orbit(9, n);
     assert_eq!(data.orbit, vec![9, 5, 8, 1, 0, 2, 3]);
     
 
-    schreir = Schreier::new(
+    schreier = Schreier::new(
         PermutationGroup::new(
             vec![
                 Permutation::new(vec![0,1,2]),
                 Permutation::new(vec![0,2,3,1]),
             ]));
 
-    let data = schreir.get_orbit(0);
+    let n = schreier.group.get_range();
+    let data = schreier.get_orbit(0, n);
     assert_eq!(data.orbit, vec![0]);
     
-    let data = schreir.get_orbit(1);
+    let data = schreier.get_orbit(1, n);
     assert_eq!(data.orbit, vec![1, 2, 3]);
     
-    let data = schreir.get_orbit(2);
+    let data = schreier.get_orbit(2, n);
     assert_eq!(data.orbit, vec![2, 3, 1]);
     
-    let data = schreir.get_orbit(3);
+    let data = schreier.get_orbit(3, n);
     assert_eq!(data.orbit, vec![3, 1, 2]);
     
 

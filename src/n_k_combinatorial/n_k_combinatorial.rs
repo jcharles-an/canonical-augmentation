@@ -8,11 +8,12 @@ use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 use graph_canon::CanonLabeling;
 use log::{debug, info};
+use memory_stats::memory_stats;
 use nauty_pet::canon::IntoCanonNautyDense;
 use petgraph::Undirected;
 use crate::data_structs;
 use crate::data_structs::bitmaps::{BMConf, BM, BMC};
-use crate::data_structs::consts::{HMap, N, N_CONF};
+use crate::data_structs::consts::{HMap, N, N_C, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::schreier::automorphism::Automorphism;
 use crate::schreier::group::Group;
@@ -43,6 +44,8 @@ pub struct NkCombinatorial {
     pub read_lock_time: f64,
     pub insert_time: f64,
     pub certificate_time: f64,
+    pub max_memory: f64,
+    pub flag: bool,
 
 }
 
@@ -76,6 +79,8 @@ impl NkCombinatorial {
             read_lock_time: 0.0,
             certificate_time:0.0,
             insert_time:0.0,
+            max_memory:0.0,
+            flag:false,
         }
     }
 
@@ -96,6 +101,8 @@ impl NkCombinatorial {
             read_lock_time: 0.0,
             certificate_time:0.0,
             insert_time:0.0,
+            max_memory:0.0,
+            flag:false,
         }
     }
     
@@ -236,7 +243,7 @@ impl NkCombinatorial {
 
             //last line?
             if current_line == self.leaf_level {
-                return self.process_leaf_iso();
+                return self.process_leaf_iso_set_early();
             }
             //advance line
             return self.iso_backtrack_share(current_line + 1, 0);
@@ -317,6 +324,9 @@ impl NkCombinatorial {
 
 
         self.vertices_seen += 1;
+        if self.vertices_seen % 1_000_000 == 0 {
+            println!("seen_vertices: {}", self.vertices_seen);
+        }
         if self.add_point_line_relation(current_point, current_line){
             //is line isomorphic to previous one?
             if point_count == interval - 1 {
@@ -416,8 +426,36 @@ impl NkCombinatorial {
     fn process_leaf_iso(&mut self){
         self.leaves_seen += 1;
         self.early_leaves.push(self.lines.clone());
+        if let Some(usage) = memory_stats() {
+            let memory = usage.physical_mem as f64 / (1024.0 * 1024.0);
+            if self.max_memory < memory {
+                self.max_memory = memory;
+            }
+        }
+        
+        return;
+        let C = (self.get_canon)(self);
+        if self.hashmap.insert(format!("{:?}",C), true).is_none() {
+            println!("{} {C}", self.hashmap.len());
+        };
+        
         // println!("Found new config");
         // Graph::print_ady_mat_BMConf(self.lines.as_slice());
+    }
+
+    fn process_leaf_iso_set_early(&mut self) {
+        self.leaves_seen += 1;
+        if self.flag{
+            self.early_leaves.push(self.lines.clone());
+        }
+        if let Some(usage) = memory_stats() {
+            let memory = usage.physical_mem as f64 / (1024.0 * 1024.0);
+            if self.max_memory < memory {
+                self.max_memory = memory;
+            }
+        }
+
+        return;
     }
 
     pub fn inhouse_canon(&mut self) -> String{
@@ -453,10 +491,13 @@ impl NkCombinatorial {
     }
     
 
-    pub fn to_pet_graph(&self) -> petgraph::Graph::<(), (), Undirected> {
+    pub fn to_pet_graph(&self) -> petgraph::Graph::<usize, (), Undirected> {
         let mut g = petgraph::Graph::new_undirected();
-        for _ in 0..N_CONF*2{
-            g.add_node(());
+        for _ in 0..N_CONF{
+            g.add_node(0);
+        }
+        for _ in N_CONF..N_CONF*2{
+            g.add_node(1);
         }
         for (l,line) in self.lines.iter().enumerate() {
             for p in line {
@@ -515,6 +556,7 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Durat
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
     n_k_combinatorial.set_leaf_level(leaf_level);
+    n_k_combinatorial.flag = true;
     n_k_combinatorial.iso_backtrack_share(0,0);
     let hm = n_k_combinatorial.hashmaps_lock;
 
@@ -529,9 +571,10 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Durat
             let leaf = &n_k_combinatorial.early_leaves[i];
             let mut n_k_combinatorial = NkCombinatorial::new_par(k, leaf.clone(),i, hm.clone());
             n_k_combinatorial.set_canon_method(Nauty);
+            n_k_combinatorial.flag = false;
             n_k_combinatorial.iso_backtrack_share(leaf_level + 1,0);
 
-            /*
+            
             println!("\t\t\t{i} done in {:?}, v: {} l:{} r:{}",
                      now.elapsed(),n_k_combinatorial.vertices_seen,
                      n_k_combinatorial.leaves_seen, n_k_combinatorial.rejected_branches);
@@ -541,7 +584,7 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Durat
                 println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
             }
 
-             */
+             
            
 
         });

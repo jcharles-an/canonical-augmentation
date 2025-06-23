@@ -25,7 +25,58 @@ mod schreier;
 mod data_structs;
 mod n_k_combinatorial;
 
-fn main_2(){
+
+fn main() {
+    env_logger::init();
+    info!("Starting schreier");
+    let args: Vec<String> = env::args().collect();
+
+    let mut k = 3;
+    if args.len() > 1 {
+        k = args[1].parse::<usize>().unwrap();
+
+    }
+    let lines = get_n_k_base(N_CONF,k);
+    
+    /*
+    let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(3);
+    let now = Instant::now();
+    nkComb.rec(0);
+    let duration = now.elapsed();
+    println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.sols.len());
+    println!("Time elapsed: {:?}", duration);
+
+    let op = args[2].parse::<usize>().unwrap();
+    if op == 1 {
+        println!("\n\nSequential ISO prune");
+        let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
+        n_k_combinatorial.set_canon_method(Nauty);
+        let now = Instant::now();
+        n_k_combinatorial.iso_var_backtrack(k, 0,0,3);
+        let elapsed_2 = now.elapsed();
+        println!("Elapsed:{:?}", elapsed_2);
+        println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
+                 n_k_combinatorial.vertices_seen, n_k_combinatorial.leaves_seen, n_k_combinatorial.early_leaves.len(), n_k_combinatorial.max_memory);
+
+    }
+    else {
+        println!("\n\nSequential ISO prune pizaña");
+        let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(k);
+        let now = Instant::now();
+        nkComb.rec_with_memory(0);
+        let duration = now.elapsed();
+        //println!("Memory: {:?}", nkComb.memory);
+        println!("Time elapsed: {:?}", duration);
+        println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
+                 nkComb.seen_vertices, nkComb.seen_leaves, nkComb.sols.len(), nkComb.max_memory);
+
+    }
+    */
+    println!("\n\nParallel ISO prune");
+    let elapsed = launch_parallel(lines,k,6);
+}
+
+fn main_nk_combination(){
     env_logger::init();
     info!("Starting schreier");
     let args: Vec<String> = env::args().collect();
@@ -50,7 +101,7 @@ fn main_2(){
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
     println!("Non-isomorphic solutions:{:?}", n_k_combinatorial.hashmap.len());
     
-
+*/
 
     
 
@@ -63,12 +114,12 @@ fn main_2(){
     println!("Elapsed:{:?}", elapsed_2);
     println!("Seen leaves:{}", n_k_combinatorial.leaves_seen);
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    println!("Non-isomorphic solutions:{:?}", n_k_combinatorial.hashmap.len());
+    println!("Non-isomorphic solutions:{:?}", n_k_combinatorial.early_leaves.len());
 
-    */
+    
 
     println!("\n\nParallel ISO prune");
-    let elapsed = launch_parallel(lines,k,6);
+    let elapsed = launch_parallel(lines,k,4);
     // println!("\n\nTime after parallelization: {:.4}%", (elapsed.as_secs_f64() / elapsed_2.as_secs_f64()) * 100.0);
     
 }
