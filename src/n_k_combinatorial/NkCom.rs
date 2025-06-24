@@ -1,18 +1,24 @@
+use rayon::iter::ParallelIterator;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::{BitAnd, BitOr, Deref};
 use std::path::Prefix;
 use std::process;
-use std::time::Instant;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
+use libc::confstr;
 use log::{debug, trace};
 use memory_stats::memory_stats;
 use nauty_pet::graph::CanonGraph;
 use petgraph::dot::Dot;
 use petgraph::visit::Walker;
+use rayon::iter::IntoParallelIterator;
 use crate::data_structs::bitmaps::{BMConf, BM};
 use crate::data_structs::consts::*;
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
+use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
+use crate::n_k_combinatorial::n_k_combinatorial::NkCombinatorial;
 use crate::schreier::group::Group;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::schreier_permutation::Schreier;
@@ -26,17 +32,25 @@ pub struct SolutionProperties {
     ady_certificate: String,
 }
 
+pub struct Config {
+    leaf_level: usize,
+    save_leaves: bool,
+}
+
 pub(crate) struct NkComb {
     graph: Graph,
     n: usize,
     k: usize,
     pub seen_vertices: usize,
     pub seen_leaves:usize,
-    pub print:usize,
     pub sols: HMap,
+    pub sols_lock: Arc<RwLock<HMap>>,
     pub solution_path: Vec<SolutionProperties>,
     pub memory: Vec<HMap>,
     pub max_memory: f64,
+    // paralellize
+    early_leaves: Vec<Graph>,
+    config: Config
 }
 
 impl NkComb {
@@ -46,31 +60,40 @@ impl NkComb {
         let g = Graph {
             ady_matrix: ady_mat,
         };
+        Self::from_graph(k, g, Config { leaf_level: n, save_leaves: false }, Arc::new(RwLock::new(HMap::new())))
+    }
+
+    pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>) -> NkComb {
+        let n = graph.ady_matrix.len();
         NkComb {
-            graph: g ,
+            graph,
             n,
             k,
             seen_vertices: 0,
             seen_leaves: 0,
-            print: 1,
             sols: HashMap::new(),
+            sols_lock,
             solution_path: vec![SolutionProperties::default(); n/2],
             memory: vec![HashMap::new(); n/2],
             max_memory: 0.0,
+            config,
+            early_leaves: vec![],
         }
     }
+    
+    
     pub fn rec( &mut self, current_line: usize){
         self.seen_vertices += 1;
         
         let S = self.get_available_points();
 
-        if S.is_empty() || current_line > self.n {
+        if S.is_empty() || current_line > self.config.leaf_level {
             self.process_leaf();
             return;
         }
 
 
-        let gen = NautyGraph::get_aut_generators(&self.graph).unwrap();
+        let (gen, canon)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
         // println!("{:?}", gen);
 
         let schreier = Schreier::from_generators(gen);
@@ -85,13 +108,7 @@ impl NkComb {
             self.add_edges(current_line, &prefix);
             
             if self.is_feasible(current_line, &prefix) {
-                self.gather_info(current_line, &prefix);
-                //if self.print > 0 {
-                //    self.is_feasible(current_line, &prefix);
-
-                    // 4. Print the result
-               //     println!("{}  is feasible\n", self.graph.custom_print());
-               // }
+                //self.gather_info(current_line, &prefix);
                 self.rec(current_line + 1);
             }
 
@@ -113,9 +130,13 @@ impl NkComb {
             self.process_leaf();
             return;
         }
-       
 
-        let gen = NautyGraph::get_aut_generators(&self.graph).unwrap();
+
+        let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+        if self.memory[current_line].insert(certificate, true).is_some() {
+            return;
+        }
+        
         let schreier = Schreier::from_generators(gen);
         let mut prefixes_holder = Schreier::get_S_choose_k_in_G(schreier.clone(), self.n, &S, self.k);
 
@@ -147,18 +168,7 @@ impl NkComb {
             self.add_edges(current_line, &prefix);
 
             if self.is_feasible(current_line, &prefix) {
-                let certificate = self.get_canon_certificate();
-                if self.memory[current_line].insert(certificate, true).is_none(){
-                    //self.gather_info(current_line, &prefix);
-                    self.rec_with_memory(current_line + 1);
-                }
-                //self.solution_path[current_line]= (prefix.clone(), self.get_canon_certificate(), current_sol, NautyGraph::get_aut_generators(&self.graph).unwrap());
-                //if self.print > 0 {
-                //    self.is_feasible(current_line, &prefix);
-
-                // 4. Print the result
-                //     println!("{}  is feasible\n", self.graph.custom_print());
-                // }
+                self.rec_with_memory(current_line + 1);
             }
 
             self.remove_edges(current_line, &prefix);
@@ -208,10 +218,16 @@ impl NkComb {
             }
         }
         
-        let canon = self.get_canon_certificate();
-        if self.sols.insert( canon.clone(), true).is_none() {
-            println!("{} {canon}", self.sols.len());
-        };
+        if self.config.save_leaves{
+            self.early_leaves.push(self.graph.clone());
+        } else {
+            let canon = self.get_canon_certificate();
+            if self.sols_lock.write().unwrap().insert( canon.clone(), true).is_none() {
+                println!("{} {canon}", self.sols.len());
+            };   
+        }
+        
+        
         /*
         if self.print > 0 {
             self.print-=1;
@@ -266,6 +282,50 @@ impl NkComb {
         certificate.to_string()
     }
 }
+
+
+pub fn launch_parallel_p(k: usize, leaf_level: usize) -> Duration {
+    let now = Instant::now();
+    let mut n_k_combinatorial = NkComb::new(k);
+    n_k_combinatorial.config = Config{
+        leaf_level,
+        save_leaves: true,
+    };
+    n_k_combinatorial.rec(0);
+    let hm = n_k_combinatorial.sols_lock;
+
+
+    println!("Task to parallelize:{}", n_k_combinatorial.early_leaves.len());
+    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
+
+    (0..n_k_combinatorial.early_leaves.len()).into_par_iter().for_each(|i|
+        {
+            // println!("Parallel {i} deployed!");
+            let now = Instant::now();
+            let leaf = &n_k_combinatorial.early_leaves[i];
+            let mut n_k_combinatorial =  NkComb::from_graph(k, leaf.clone(),Config{leaf_level: N,save_leaves: false}, hm.clone());
+            n_k_combinatorial.rec(leaf_level + 1);
+
+
+            println!("\t{i} done in {:?}, v: {} l:{}",
+                     now.elapsed(),n_k_combinatorial.seen_vertices,
+                     n_k_combinatorial.seen_leaves);
+            
+            println!("\t\t{} ", hm.read().unwrap().len());
+
+
+
+
+        });
+    let elapsed = now.elapsed();
+
+    //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
+    println!("effective leaves:{:?}", hm.read().unwrap().len());
+
+    println!("Elapsed:{:?}", elapsed);
+    elapsed
+}
+
 
 #[test]
 fn test_n_comb() {

@@ -1,8 +1,9 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use crate::data_structs::graph::Graph;
 use crate::schreier::permutation::Permutation;
 use nauty_Traces_sys::{densenauty, empty_graph, graph, nauty_check, optionblk, statsblk, ADDONEEDGE, FALSE, NAUTYVERSIONID, SETWORDSNEEDED, TRUE, WORDSIZE};
 use petgraph::visit::Walker;
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
 use std::sync::{Arc, RwLock};
 use rayon::current_num_threads;
 use crate::schreier::automorphism::Automorphism;
@@ -25,7 +26,7 @@ impl NautyGraph {
         let n = graph.ady_matrix.len();
         let m = SETWORDSNEEDED(n);
         let mut g = empty_graph(m, n);
-        
+
         for (i, bm) in graph.ady_matrix.iter().enumerate() {
             for j in bm {
                 if j > i {
@@ -33,7 +34,7 @@ impl NautyGraph {
                 }
             }
         }
-        
+
         let lab = (0..n).map(|x| x as c_int).collect::<Vec<c_int>>();
         let mut ptn = vec![1 as c_int; n];
         ptn[n/2 - 1] = 0;
@@ -51,12 +52,12 @@ impl NautyGraph {
     }
 
     unsafe extern "C" fn autom_proc(
-        count: c_int,       // We don't use `count` in this example, hence `_count`
+        count: c_int,       
         generator: *mut c_int,
         orbits: *mut c_int,
         n_orb: c_int,
-        stab_vert: c_int,      // We don't use `digraph`
-        n: c_int,      // We don't use `digraph`
+        stab_vert: c_int,     
+        n: c_int,      
     ) {
         if let Some(ref generators_mutex) = GENERATORS {
             let mut generators = generators_mutex.write().unwrap(); // Acquire mutex lock
@@ -70,7 +71,7 @@ impl NautyGraph {
         }
     }
 
-    pub fn get_aut_generators(graph: &Graph) -> Option<Vec<Permutation>> {
+    pub fn get_aut_generators_and_cert(graph: &Graph) -> Option<(Vec<Permutation>, String)> {
         unsafe {
             GENERATORS = Some(Arc::new(RwLock::new(Vec::new())));
         }
@@ -78,6 +79,7 @@ impl NautyGraph {
         let mut options = optionblk{
             userautomproc: Some(Self::autom_proc),
             defaultptn: FALSE,
+            getcanon: TRUE,
             ..Default::default()
         };
 
@@ -89,6 +91,7 @@ impl NautyGraph {
         let mut g = nauty_graph.g;
         let mut lab = nauty_graph.lab;
         let mut ptn =nauty_graph.ptn;
+        let mut canon_g = empty_graph(m, n);
 
         unsafe {
             nauty_check(WORDSIZE as c_int, m as c_int, n as c_int, NAUTYVERSIONID as c_int);
@@ -106,16 +109,23 @@ impl NautyGraph {
                 &mut stats,
                 m as c_int,
                 n as c_int,
-                std::ptr::null_mut()
+                canon_g.as_mut_ptr(),
             );
         }
 
-        let mut generators = None;
+        let mut generators;
         unsafe {
-            generators = Some(GENERATORS.as_ref()?.read().unwrap().clone());
+            generators = GENERATORS.as_ref()?.read().unwrap().clone();
         }
 
-        generators
+        let mut hasher = DefaultHasher::new();
+        let mut canon = vec![0; canon_g.len()];
+        
+        for (i, value) in canon_g.iter().enumerate(){
+            canon[i] = *value as usize;
+        }
+        canon.hash(&mut hasher);
+        Some((generators, hasher.finish().to_string()))
     }
 }
 
@@ -135,11 +145,11 @@ fn test_automorphism() {
     let mut g = Graph {
         ady_matrix: ady_mat.clone(),
     };
-    
+
     ////////////////////////////////////////////////
-    
-    
+
+
     //schreier.group.simple_generate_group();
-    
-    
+
+
 }

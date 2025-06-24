@@ -19,7 +19,7 @@ use crate::schreier::stabilizer_chain::RecStabilizerChain;
 use nauty_Traces_sys::*;
 use std::ffi::{c_char, CString};
 use std::ptr;
-
+use crate::n_k_combinatorial::NkCom::launch_parallel_p;
 
 mod schreier;
 mod data_structs;
@@ -37,6 +37,7 @@ fn main() {
 
     }
     let lines = get_n_k_base(N_CONF,k);
+    let leaf_level = 4;
     
     /*
     let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(3);
@@ -47,33 +48,51 @@ fn main() {
     println!("Time elapsed: {:?}", duration);
 
     let op = args[2].parse::<usize>().unwrap();
-    if op == 1 {
-        println!("\n\nSequential ISO prune");
-        let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
-        n_k_combinatorial.set_canon_method(Nauty);
-        let now = Instant::now();
-        n_k_combinatorial.iso_var_backtrack(k, 0,0,3);
-        let elapsed_2 = now.elapsed();
-        println!("Elapsed:{:?}", elapsed_2);
-        println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
-                 n_k_combinatorial.vertices_seen, n_k_combinatorial.leaves_seen, n_k_combinatorial.early_leaves.len(), n_k_combinatorial.max_memory);
-
-    }
-    else {
-        println!("\n\nSequential ISO prune pizaña");
-        let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(k);
-        let now = Instant::now();
-        nkComb.rec_with_memory(0);
-        let duration = now.elapsed();
-        //println!("Memory: {:?}", nkComb.memory);
-        println!("Time elapsed: {:?}", duration);
-        println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
-                 nkComb.seen_vertices, nkComb.seen_leaves, nkComb.sols.len(), nkComb.max_memory);
-
-    }
     */
+
+        {
+            println!("\n\nSequential ISO prune");
+            let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
+            n_k_combinatorial.set_canon_method(Nauty);
+            let now = Instant::now();
+            n_k_combinatorial.iso_backtrack(k, 0);
+            let elapsed_2 = now.elapsed();
+            println!("Elapsed:{:?}", elapsed_2);
+            println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
+                     n_k_combinatorial.vertices_seen, n_k_combinatorial.leaves_seen, n_k_combinatorial.early_leaves.len(), n_k_combinatorial.max_memory);
+
+            for (i, val) in n_k_combinatorial.hashmaps.iter().enumerate(){
+                println!("{} {}", i, val.len())
+            }
+        }
+
+        {
+            println!("\n\nSequential ISO prune pizaña");
+            let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(k);
+            let now = Instant::now();
+            nkComb.rec_with_memory(0);
+            let duration = now.elapsed();
+            //println!("Memory: {:?}", nkComb.memory);
+            println!("Time elapsed: {:?}", duration);
+            println!("vertices: {}\nleaves: {}\nsols: {}\nmax_mem: {}",
+                     nkComb.seen_vertices, nkComb.seen_leaves, nkComb.sols.len(), nkComb.max_memory);
+            
+            for (i, val) in nkComb.memory.iter().enumerate(){
+                println!("{} {}", i, val.len())
+            }
+        }
+
+
+    /*
+    println!("\n\nParallel Pizaña ISO prune");
+    let elapsed = launch_parallel_p(k,3);
+     return;
+
+    }
+    
+    
     println!("\n\nParallel ISO prune");
-    let elapsed = launch_parallel(lines,k,6);
+    let elapsed = launch_parallel(lines,k,4); */
 }
 
 fn main_nk_combination(){
