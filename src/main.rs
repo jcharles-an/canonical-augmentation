@@ -38,6 +38,7 @@ fn main() {
     }
     let lines = get_n_k_base(N_CONF,k);
     let leaf_level = 4;
+    let print = false;
     
     /*
     let mut nkComb = crate::n_k_combinatorial::NkCom::NkComb::new(3);
@@ -48,7 +49,7 @@ fn main() {
     println!("Time elapsed: {:?}", duration);
 
     let op = args[2].parse::<usize>().unwrap();
-    */
+    
 
         {
             println!("\n\nSequential ISO prune");
@@ -81,18 +82,17 @@ fn main() {
                 println!("{} {}", i, val.len())
             }
         }
+    */
 
-
-    /*
+    
     println!("\n\nParallel Pizaña ISO prune");
-    let elapsed = launch_parallel_p(k,3);
-     return;
-
-    }
+    let elapsed = launch_parallel_p(k,8, print);
+    
     
     
     println!("\n\nParallel ISO prune");
-    let elapsed = launch_parallel(lines,k,4); */
+    let elapsed = launch_parallel(lines,k,5, print); 
+    
 }
 
 fn main_nk_combination(){
@@ -138,7 +138,7 @@ fn main_nk_combination(){
     
 
     println!("\n\nParallel ISO prune");
-    let elapsed = launch_parallel(lines,k,4);
+    let elapsed = launch_parallel(lines,k,4, false);
     // println!("\n\nTime after parallelization: {:.4}%", (elapsed.as_secs_f64() / elapsed_2.as_secs_f64()) * 100.0);
     
 }

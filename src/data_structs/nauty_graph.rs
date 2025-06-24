@@ -1,15 +1,19 @@
+use std::cell::RefCell;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use crate::data_structs::graph::Graph;
 use crate::schreier::permutation::Permutation;
 use nauty_Traces_sys::{densenauty, empty_graph, graph, nauty_check, optionblk, statsblk, ADDONEEDGE, FALSE, NAUTYVERSIONID, SETWORDSNEEDED, TRUE, WORDSIZE};
 use petgraph::visit::Walker;
 use std::os::raw::{c_int, c_void};
+use std::slice::GetDisjointMutError;
 use std::sync::{Arc, RwLock};
 use rayon::current_num_threads;
 use crate::schreier::automorphism::Automorphism;
 use crate::schreier::schreier_permutation::Schreier;
 
-static mut GENERATORS: Option<Arc<RwLock<Vec<Permutation>>>> = None;
+thread_local! {
+    static GENERATORS: RefCell<Option<Arc<RwLock<Vec<Permutation>>>>> = const { RefCell::new(None) };
+}
 
 
 pub struct NautyGraph {
@@ -52,28 +56,32 @@ impl NautyGraph {
     }
 
     unsafe extern "C" fn autom_proc(
-        count: c_int,       
+        count: c_int,
         generator: *mut c_int,
         orbits: *mut c_int,
         n_orb: c_int,
-        stab_vert: c_int,     
-        n: c_int,      
+        stab_vert: c_int,
+        n: c_int,
     ) {
-        if let Some(ref generators_mutex) = GENERATORS {
-            let mut generators = generators_mutex.write().unwrap(); // Acquire mutex lock
-            let mut current_generator = Vec::with_capacity(n as usize);
+        GENERATORS.with_borrow(|g| {
+            if let Some(ref generators_mutex) = g {
+                let mut generators = generators_mutex.write().unwrap(); // Acquire mutex lock
+                let mut current_generator = Vec::with_capacity(n as usize);
 
-            for i in 0..n {
-                current_generator.push(*generator.add(i as usize) as usize);
-            }
+                for i in 0..n {
+                    current_generator.push( * generator.add(i as usize) as usize);
+                }
 
             generators.push(Permutation::new(current_generator));
-        }
+            }
+        })
     }
 
     pub fn get_aut_generators_and_cert(graph: &Graph) -> Option<(Vec<Permutation>, String)> {
         unsafe {
-            GENERATORS = Some(Arc::new(RwLock::new(Vec::new())));
+            GENERATORS.with_borrow_mut(| g | {
+                *g = Some(Arc::new(RwLock::new(Vec::new())))
+            });
         }
 
         let mut options = optionblk{
@@ -113,9 +121,11 @@ impl NautyGraph {
             );
         }
 
-        let mut generators;
+        let mut generators = Vec::new();
         unsafe {
-            generators = GENERATORS.as_ref()?.read().unwrap().clone();
+            GENERATORS.with_borrow(|g| {
+                generators = g.as_ref().unwrap().read().unwrap().clone();
+            });
         }
 
         let mut hasher = DefaultHasher::new();

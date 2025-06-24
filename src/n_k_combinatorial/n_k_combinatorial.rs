@@ -551,7 +551,7 @@ pub fn get_jobs(lines: Vec<BMConf>, k: usize, leaf_level: usize){
     println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
 }
 
-pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Duration {
+pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize, print: bool) -> Duration {
     let now = Instant::now();
     let mut n_k_combinatorial = NkCombinatorial::new(k, lines.clone());
     n_k_combinatorial.set_canon_method(Nauty);
@@ -574,18 +574,17 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize) -> Durat
             n_k_combinatorial.flag = false;
             n_k_combinatorial.iso_backtrack_share(leaf_level + 1,0);
 
-            
-            println!("\t\t\t{i} done in {:?}, v: {} l:{} r:{}",
-                     now.elapsed(),n_k_combinatorial.vertices_seen,
-                     n_k_combinatorial.leaves_seen, n_k_combinatorial.rejected_branches);
-            n_k_combinatorial.print_times();
+            if print{
+                println!("\t\t\t{i} done in {:?}, v: {} l:{} r:{}",
+                         now.elapsed(),n_k_combinatorial.vertices_seen,
+                         n_k_combinatorial.leaves_seen, n_k_combinatorial.rejected_branches);
+                n_k_combinatorial.print_times();
 
-            for i in 0..N_CONF{
-                println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
+                for i in 0..N_CONF{
+                    println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
+                }
+                println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
             }
-
-             
-           
 
         });
     let elapsed = now.elapsed();
@@ -771,7 +770,7 @@ pub fn test_10_3() {
     println!("Hasmap:{:?}", n_k_combinatorial.hashmaps.last().unwrap());
     println!();
 
-    launch_parallel(lines, k, 4);
+    launch_parallel(lines, k, 4, false);
 }
 
 #[test]
@@ -841,7 +840,7 @@ fn test_15_4() {
     println!();
 
 
-    launch_parallel(lines, k, 5);
+    launch_parallel(lines, k, 5, false);
 }
 
 
@@ -849,7 +848,7 @@ fn test_15_4() {
 fn test_16_4() {
     let k = 4;
     let lines = get_n_k_base(16, k);
-    launch_parallel(lines, k, 6);
+    launch_parallel(lines, k, 6, false);
 }
 
 
@@ -857,7 +856,7 @@ fn test_16_4() {
 fn test_17_4() {
     let k = 4;
     let lines = get_n_k_base(17, k);
-    launch_parallel(lines, k, 7);
+    launch_parallel(lines, k, 7, false);
 }
 
 

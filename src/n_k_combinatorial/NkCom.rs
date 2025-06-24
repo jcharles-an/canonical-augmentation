@@ -4,7 +4,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::{BitAnd, BitOr, Deref};
 use std::path::Prefix;
 use std::process;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 use libc::confstr;
 use log::{debug, trace};
@@ -126,7 +126,7 @@ impl NkComb {
 
 
         let S = self.get_available_points();
-        if S.is_empty() || current_line > self.n {
+        if S.is_empty() || current_line > self.config.leaf_level {
             self.process_leaf();
             return;
         }
@@ -217,15 +217,15 @@ impl NkComb {
                 self.max_memory = memory;
             }
         }
-        
-        if self.config.save_leaves{
-            self.early_leaves.push(self.graph.clone());
-        } else {
-            let canon = self.get_canon_certificate();
-            if self.sols_lock.write().unwrap().insert( canon.clone(), true).is_none() {
-                println!("{} {canon}", self.sols.len());
-            };   
-        }
+
+        let canon = self.get_canon_certificate();
+        if self.sols_lock.write().unwrap().insert( canon.clone(), true).is_none() {
+            if self.config.save_leaves{
+                self.early_leaves.push(self.graph.clone());
+            } else {
+                //println!("{} {canon}", self.sols.len());
+            }
+        };
         
         
         /*
@@ -284,44 +284,47 @@ impl NkComb {
 }
 
 
-pub fn launch_parallel_p(k: usize, leaf_level: usize) -> Duration {
+pub fn launch_parallel_p(k: usize, leaf_level: usize, print: bool) -> Duration {
     let now = Instant::now();
     let mut n_k_combinatorial = NkComb::new(k);
     n_k_combinatorial.config = Config{
         leaf_level,
         save_leaves: true,
     };
-    n_k_combinatorial.rec(0);
-    let hm = n_k_combinatorial.sols_lock;
+    n_k_combinatorial.rec_with_memory(0);
+    let hm = Arc::new(RwLock::new(HMap::new()));
 
 
-    println!("Task to parallelize:{}", n_k_combinatorial.early_leaves.len());
+    let total_threads = n_k_combinatorial.early_leaves.len();
+    println!("Task to parallelize:{}", total_threads);
     //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-
-    (0..n_k_combinatorial.early_leaves.len()).into_par_iter().for_each(|i|
+    let mut threads_done = Arc::new(Mutex::new(0));
+    (0..total_threads).into_par_iter().for_each(|i|
         {
             // println!("Parallel {i} deployed!");
             let now = Instant::now();
             let leaf = &n_k_combinatorial.early_leaves[i];
             let mut n_k_combinatorial =  NkComb::from_graph(k, leaf.clone(),Config{leaf_level: N,save_leaves: false}, hm.clone());
             n_k_combinatorial.rec(leaf_level + 1);
+            {
+                let mut i = threads_done.lock().unwrap();
+                *i += 1
+            }
+            if print {
+                println!("\t{i} done in {:?}, v: {} l:{}",
+                         now.elapsed(),n_k_combinatorial.seen_vertices,
+                         n_k_combinatorial.seen_leaves);
 
-
-            println!("\t{i} done in {:?}, v: {} l:{}",
-                     now.elapsed(),n_k_combinatorial.seen_vertices,
-                     n_k_combinatorial.seen_leaves);
-            
-            println!("\t\t{} ", hm.read().unwrap().len());
-
-
-
-
+                println!("\t\t{} ", hm.read().unwrap().len());
+                println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
+            }
+            println!("Threads done: % {}", *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32);
         });
     let elapsed = now.elapsed();
 
     //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
     println!("effective leaves:{:?}", hm.read().unwrap().len());
-
+    //println!("leaves:{:?}", hm.read().unwrap());
     println!("Elapsed:{:?}", elapsed);
     elapsed
 }
