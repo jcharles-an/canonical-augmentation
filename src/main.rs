@@ -86,7 +86,7 @@ fn main() {
 
     
     println!("\n\nParallel Pizaña ISO prune");
-    let elapsed = launch_parallel_p(k,8, print);
+    let elapsed = launch_parallel_p(k,6, 9, print);
     
     
     

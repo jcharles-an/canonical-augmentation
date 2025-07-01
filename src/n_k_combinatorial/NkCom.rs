@@ -10,6 +10,7 @@ use libc::confstr;
 use log::{debug, trace};
 use memory_stats::memory_stats;
 use nauty_pet::graph::CanonGraph;
+use nauty_Traces_sys::graph;
 use petgraph::dot::Dot;
 use petgraph::visit::Walker;
 use rayon::iter::IntoParallelIterator;
@@ -49,7 +50,7 @@ pub(crate) struct NkComb {
     pub memory: Vec<HMap>,
     pub max_memory: f64,
     // paralellize
-    early_leaves: Vec<Graph>,
+    early_leaves: Arc<RwLock<HashMap<String,Graph>>>,
     config: Config
 }
 
@@ -60,10 +61,14 @@ impl NkComb {
         let g = Graph {
             ady_matrix: ady_mat,
         };
-        Self::from_graph(k, g, Config { leaf_level: n, save_leaves: false }, Arc::new(RwLock::new(HMap::new())))
+        Self::from_graph(k, g, 
+                         Config { leaf_level: n, save_leaves: false },
+                         Arc::new(RwLock::new(HMap::new())),
+                         Arc::new(RwLock::new(HashMap::new())),
+        )
     }
 
-    pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>) -> NkComb {
+    pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>, early_leaves:Arc<RwLock<HashMap<String, Graph>>>) -> NkComb {
         let n = graph.ady_matrix.len();
         NkComb {
             graph,
@@ -77,7 +82,7 @@ impl NkComb {
             memory: vec![HashMap::new(); n/2],
             max_memory: 0.0,
             config,
-            early_leaves: vec![],
+            early_leaves: early_leaves,
         }
     }
     
@@ -120,9 +125,12 @@ impl NkComb {
     pub fn rec_with_memory( &mut self, current_line: usize){
         self.seen_vertices += 1;
 
+        /*
         if self.seen_vertices % 100000 == 0 {
             println!("seen_vertices: {}", self.seen_vertices);
         }
+        
+         */
 
 
         let S = self.get_available_points();
@@ -221,7 +229,7 @@ impl NkComb {
         let canon = self.get_canon_certificate();
         if self.sols_lock.write().unwrap().insert( canon.clone(), true).is_none() {
             if self.config.save_leaves{
-                self.early_leaves.push(self.graph.clone());
+                self.early_leaves.write().unwrap().insert(canon.clone(), self.graph.clone());
             } else {
                 //println!("{} {canon}", self.sols.len());
             }
@@ -284,7 +292,7 @@ impl NkComb {
 }
 
 
-pub fn launch_parallel_p(k: usize, leaf_level: usize, print: bool) -> Duration {
+pub fn launch_parallel_p(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
     let now = Instant::now();
     let mut n_k_combinatorial = NkComb::new(k);
     n_k_combinatorial.config = Config{
@@ -292,33 +300,78 @@ pub fn launch_parallel_p(k: usize, leaf_level: usize, print: bool) -> Duration {
         save_leaves: true,
     };
     n_k_combinatorial.rec_with_memory(0);
-    let hm = Arc::new(RwLock::new(HMap::new()));
+    let hm = Arc::new(RwLock::new(HashMap::new()));
 
 
-    let total_threads = n_k_combinatorial.early_leaves.len();
+
+    let early_leaves = n_k_combinatorial.early_leaves.read().unwrap().clone();
+    let total_threads = early_leaves.len();
+    let mut threads_done = Arc::new(Mutex::new(0));
     println!("Task to parallelize:{}", total_threads);
     //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    let mut threads_done = Arc::new(Mutex::new(0));
-    (0..total_threads).into_par_iter().for_each(|i|
+    early_leaves.into_par_iter().for_each(|(canon, leaf)|
         {
             // println!("Parallel {i} deployed!");
             let now = Instant::now();
-            let leaf = &n_k_combinatorial.early_leaves[i];
-            let mut n_k_combinatorial =  NkComb::from_graph(k, leaf.clone(),Config{leaf_level: N,save_leaves: false}, hm.clone());
-            n_k_combinatorial.rec(leaf_level + 1);
+            let mut n_k_combinatorial =  NkComb::from_graph(k, 
+                                                            leaf.clone(),
+                                                            Config{leaf_level: leaf_level_2, save_leaves: true},  
+                                                            Arc::new(RwLock::new(HMap::new())),
+                                                            hm.clone(),
+            );
+            n_k_combinatorial.rec_with_memory(leaf_level + 1);
             {
                 let mut i = threads_done.lock().unwrap();
-                *i += 1
-            }
-            if print {
-                println!("\t{i} done in {:?}, v: {} l:{}",
-                         now.elapsed(),n_k_combinatorial.seen_vertices,
-                         n_k_combinatorial.seen_leaves);
+                *i += 1;
 
-                println!("\t\t{} ", hm.read().unwrap().len());
-                println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
+                if print {
+                    println!("\t{i} done in {:?}, v: {} l:{}",
+                             now.elapsed(),n_k_combinatorial.seen_vertices,
+                             n_k_combinatorial.seen_leaves);
+
+                    println!("\t\t{} ", hm.read().unwrap().len());
+                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
+                }
             }
-            println!("Threads done: % {}", *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32);
+            println!("Threads done: % {} solutions: {} mem: {}", 
+                     *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32,
+                hm.read().unwrap().len(),
+                n_k_combinatorial.max_memory
+            );
+        });
+
+
+
+    let early_leaves = hm.read().unwrap().clone();
+    let total_threads = early_leaves.len();
+    println!("Task to parallelize:{}", total_threads);
+    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
+    let mut threads_done = Arc::new(Mutex::new(0));
+    let hm = Arc::new(RwLock::new(HMap::new()));
+    early_leaves.into_par_iter().for_each(|(canon, leaf)|
+        {
+            // println!("Parallel {i} deployed!");
+            let now = Instant::now();
+            let mut n_k_combinatorial =  NkComb::from_graph(k, 
+                                                            leaf.clone(),
+                                                            Config{leaf_level: N,save_leaves: false}, 
+                                                            hm.clone(),
+                                                            Arc::new(RwLock::new(HashMap::new())));
+            n_k_combinatorial.rec(leaf_level_2 + 1);
+            {
+                let mut i = threads_done.lock().unwrap();
+                *i += 1;
+            
+                if print {
+                    println!("\t{i} done in {:?}, v: {} l:{}",
+                             now.elapsed(),n_k_combinatorial.seen_vertices,
+                             n_k_combinatorial.seen_leaves);
+    
+                    println!("\t\t{} ", hm.read().unwrap().len());
+                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
+                }
+            }
+            println!("Threads done: % {} used mem: {}", *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32, n_k_combinatorial.max_memory);
         });
     let elapsed = now.elapsed();
 

@@ -583,8 +583,9 @@ pub fn launch_parallel(lines: Vec<BMConf>, k: usize, leaf_level: usize, print: b
                 for i in 0..N_CONF{
                     println!("\t\t\t\t\t{i:02} {} ", hm[i].read().unwrap().len());
                 }
-                println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
             }
+            println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
+            
 
         });
     let elapsed = now.elapsed();
