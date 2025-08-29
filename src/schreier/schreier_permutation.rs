@@ -14,7 +14,7 @@ struct SchreierVector<T,U>{
 }
 
 pub struct Data{
-    orbit: Vec<usize>,
+    pub(crate) orbit: Vec<usize>,
     pub(crate) stab_generators: Vec<Permutation>,
     transversal: Vec<Option<Permutation>>,
 }

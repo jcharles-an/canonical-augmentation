@@ -7,7 +7,7 @@ use std::env;
 use std::time::Instant;
 use log::{debug, info};
 use rayon::prelude::*;
-use crate::data_structs::consts::N_CONF;
+use crate::data_structs::consts::{N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
 use crate::n_k_combinatorial::n_k_combinatorial::{get_jobs, launch_parallel, NkCombinatorial};
@@ -19,11 +19,37 @@ use crate::schreier::stabilizer_chain::RecStabilizerChain;
 use nauty_Traces_sys::*;
 use std::ffi::{c_char, CString};
 use std::ptr;
-use crate::n_k_combinatorial::NkCom::launch_parallel_p;
+use crate::n_k_combinatorial::NkCom::{launch_parallel_full_p, launch_parallel_full_p_2, launch_parallel_p, Config, NkComb};
 
 mod schreier;
 mod data_structs;
 mod n_k_combinatorial;
+
+fn main_correct_pizana() {
+    /*
+    let mut nkComb = NkComb::new(4);
+    nkComb.config = Config{leaf_level: N, save_leaves: true};
+    let now = Instant::now();
+    nkComb.rec_over_full_set(0);
+    let duration = now.elapsed();
+    println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
+    println!("Time elapsed: {:?}", duration);
+
+
+
+
+    let mut nkComb = NkComb::new(4);
+    nkComb.config = Config{leaf_level: N, save_leaves: true};
+    let now = Instant::now();
+    nkComb.rec_over_full_set_with_memory(0);
+    let duration = now.elapsed();
+    println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
+    println!("Time elapsed: {:?}", duration);
+    */
+
+
+    launch_parallel_full_p_2(4,9,16,false);
+}
 
 
 fn main() {
