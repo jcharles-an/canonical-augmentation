@@ -77,7 +77,7 @@ impl NautyGraph {
         })
     }
 
-    pub fn get_aut_generators_and_cert(graph: &Graph) -> Option<(Vec<Permutation>, String)> {
+    pub fn get_aut_generators_and_cert(graph: &Graph) -> Option<(Vec<Permutation>, u128)> {
         unsafe {
             GENERATORS.with_borrow_mut(| g | {
                 *g = Some(Arc::new(RwLock::new(Vec::new())))
@@ -135,7 +135,7 @@ impl NautyGraph {
             canon[i] = *value as usize;
         }
         canon.hash(&mut hasher);
-        Some((generators, hasher.finish().to_string()))
+        Some((generators, hasher.finish().to_string().parse::<u128>().unwrap()))
     }
 }
 

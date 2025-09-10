@@ -39,7 +39,7 @@ pub struct NkCombinatorial {
     pub hashmaps: Vec<HMap>,
     pub hashmaps_lock: Arc<Vec<RwLock<HMap>>>,
     pub early_leaves: Vec<Vec<BMConf>>,
-    get_canon: fn(&mut Self)->String,
+    get_canon: fn(&mut Self)->u128,
     pub read_time: f64,
     pub read_lock_time: f64,
     pub insert_time: f64,
@@ -182,7 +182,7 @@ impl NkCombinatorial {
         if self.lines[current_line].len() == self.k {
             //is line isomorphic to previous one?
             let C = (self.get_canon)(self);
-            if self.hashmaps[current_line].insert(format!("{:?}",C), true).is_some()  {
+            if self.hashmaps[current_line].insert(C, true).is_some()  {
                 debug!("Found iso config");
                 return;
             }
@@ -273,9 +273,9 @@ impl NkCombinatorial {
             //is line isomorphic to previous one?
             aut.set_graph(self.to_levy_graph());
             let now = Instant::now();
-            let C = aut.cert_2();
+            let C = format!("{:?}",aut.cert_2()).parse::<u128>().unwrap();
             println!("elapsed: {:?}", now.elapsed());
-            if self.hashmaps[current_line].insert(format!("{:?}",C), true) != None {
+            if self.hashmaps[current_line].insert(C, true) != None {
                 debug!("Found iso config");
                 return back_aut;
             }
@@ -332,7 +332,7 @@ impl NkCombinatorial {
             if point_count == interval - 1 {
                 //is line isomorphic to previous one?
                 let C = (self.get_canon)(self);
-                if self.hashmaps[current_line].insert(format!("{:?}",C), true).is_some()  {
+                if self.hashmaps[current_line].insert(C, true).is_some()  {
                     debug!("Found iso config");
                 }else {
                     // advance point
@@ -415,8 +415,8 @@ impl NkCombinatorial {
     fn process_leaf(&mut self){
         self.leaves_seen += 1;
         let mut aut = Automorphism::new(self.to_levy_graph());
-        let C = aut.cert_2();
-        if self.hashmap.insert(format!("{:?}",C), true).is_none() {
+        let C = format!("{:?}",aut.cert_2()).parse::<u128>().unwrap();
+        if self.hashmap.insert(C, true).is_none() {
             debug!("Found new config");
             //println!("Found new config");
             //Graph::print_ady_mat_BMConf(self.lines.as_slice());
@@ -435,7 +435,7 @@ impl NkCombinatorial {
         
         return;
         let C = (self.get_canon)(self);
-        if self.hashmap.insert(format!("{:?}",C), true).is_none() {
+        if self.hashmap.insert(C, true).is_none() {
             println!("{} {C}", self.hashmap.len());
         };
         
@@ -458,17 +458,17 @@ impl NkCombinatorial {
         return;
     }
 
-    pub fn inhouse_canon(&mut self) -> String{
+    pub fn inhouse_canon(&mut self) -> u128{
         let mut aut = Automorphism::new(self.to_levy_graph());
         let C = aut.cert_2();
-        format!("{:?}", C)
+        (format!("{:?}", C)).parse::<u128>().unwrap()
     }
     
-    pub fn nauty_canon(&mut self) -> String{
+    pub fn nauty_canon(&mut self) -> u128{
         let canon = CanonGraph::from(self.to_pet_graph());
         let mut hasher = DefaultHasher::new();
         canon.hash(&mut hasher);
-        hasher.finish().to_string()
+        hasher.finish().to_string().parse::<u128>().unwrap()
     }
     
     pub fn to_levy_graph(&self) -> Graph {

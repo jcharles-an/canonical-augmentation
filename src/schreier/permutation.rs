@@ -1,8 +1,9 @@
 use std::cmp;
 use std::fmt::{Debug, Display, Formatter};
+use bincode::{Decode, Encode};
 use bitmaps::Bitmap;
 
-#[derive(Clone,Eq, Hash, PartialEq)]
+#[derive(Clone, Ord, Eq, Hash, PartialEq, Encode, Decode, PartialOrd)]
 pub struct Permutation {
     pub map: Vec<usize>,
     pub size: usize,

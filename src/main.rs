@@ -2,7 +2,9 @@
 #![allow(unused)]
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
+extern crate core;
 
+use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
 use log::{debug, info};
@@ -19,7 +21,8 @@ use crate::schreier::stabilizer_chain::RecStabilizerChain;
 use nauty_Traces_sys::*;
 use std::ffi::{c_char, CString};
 use std::ptr;
-use crate::n_k_combinatorial::NkCom::{launch_parallel_full_p, launch_parallel_full_p_2, launch_parallel_p, Config, NkComb};
+use crate::n_k_combinatorial::{NkCom, NkCombManager};
+use crate::n_k_combinatorial::NkCombManager::{manager, parallel_manager};
 
 mod schreier;
 mod data_structs;
@@ -48,11 +51,67 @@ fn main_correct_pizana() {
     */
 
 
-    launch_parallel_full_p_2(4,9,16,false);
+    NkCombManager::launch_parallel_full_p_2(4,9,16,false);
 }
 
 
 fn main() {
+    std::env::set_var("RUST_LOG", "info");
+    env_logger::init();
+    let args: Vec<String> = env::args().collect();
+
+    let mut k = 3;
+    let mut save_gen = false;
+    if args.len() > 1 {
+        k = args[1].parse::<usize>().unwrap();
+        save_gen = args[2].parse::<bool>().unwrap()
+    }
+
+    // manager(N,4,10);
+
+    parallel_manager(N,k,20, save_gen);
+    return;
+    let args: Vec<String> = env::args().collect();
+    let mut k = 3;
+    let mut line = 0;
+    let mut graphs = "";
+    if args.len() > 1 {
+        k = args[1].parse::<usize>().unwrap();
+        line = args[2].parse::<usize>().unwrap();
+    }
+    if args.len() > 3 {
+        graphs = &args[3];
+    }
+    let mut hm: HashMap<u128,Graph>;
+    let mut certs: HashMap<u128, Graph> = HashMap::new();
+    if graphs.eq(""){
+        hm = NkCombManager::get_level(k, line);
+    } else {
+        for graph in graphs[1..graphs.len() -1 ].split(","){
+            hm = NkCombManager::get_level_from_graph(k, line, Graph::from_string(graph));
+            for (cert, graph) in hm{
+                certs.insert(cert, graph);
+            }
+        }
+    }
+    for (cert, graph) in certs{
+        println!("{} {}", cert, graph)
+    }
+
+
+
+}
+
+#[test]
+fn test_main(){
+
+}
+
+fn parse_graphs_from_string(graph_str: &str) -> impl Iterator + use<'_>{
+    graph_str[1..graph_str.len() -1 ].split(",")
+}
+
+fn main_pre_share() {
     env_logger::init();
     info!("Starting schreier");
     let args: Vec<String> = env::args().collect();
@@ -112,7 +171,7 @@ fn main() {
 
     
     println!("\n\nParallel Pizaña ISO prune");
-    let elapsed = launch_parallel_p(k,6, 9, print);
+    let elapsed = NkCombManager::launch_parallel_p(k,6, 9, print);
     
     
     

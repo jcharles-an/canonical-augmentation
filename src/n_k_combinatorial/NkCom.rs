@@ -1,28 +1,21 @@
-use rayon::iter::ParallelIterator;
-use std::collections::HashMap;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::ops::{BitAnd, BitOr, Deref};
-use std::path::Prefix;
-use std::process;
-use std::sync::{Arc, Mutex, RwLock};
-use std::time::{Duration, Instant};
-use libc::confstr;
-use log::{debug, trace};
-use memory_stats::memory_stats;
-use nauty_pet::graph::CanonGraph;
-use nauty_Traces_sys::graph;
-use petgraph::dot::Dot;
-use petgraph::visit::Walker;
-use rayon::iter::IntoParallelIterator;
-use crate::data_structs::bitmaps::{BMConf, BM};
+use crate::data_structs::bitmaps::BM;
 use crate::data_structs::consts::*;
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
-use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::Nauty;
-use crate::n_k_combinatorial::n_k_combinatorial::NkCombinatorial;
-use crate::schreier::group::Group;
-use crate::schreier::permutation::Permutation;
 use crate::schreier::schreier_permutation::{SChooseKInG, Schreier};
+use memory_stats::memory_stats;
+use nauty_pet::graph::CanonGraph;
+use petgraph::visit::Walker;
+use std::collections::{BTreeMap, HashMap};
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::io::Write;
+use std::ops::BitAnd;
+use std::sync::{Arc, RwLock};
+use std::time::Instant;
+use base64::Engine;
+use base64::engine::general_purpose;
+use crate::data_structs::cert_graph::CertGraph;
+use crate::schreier::permutation::Permutation;
 
 #[derive(Clone, Default)]
 pub struct SolutionProperties {
@@ -47,11 +40,11 @@ pub(crate) struct NkComb {
     pub sols: HMap,
     pub sols_lock: Arc<RwLock<HMap>>,
     pub solution_path: Vec<SolutionProperties>,
-    pub memory: Vec<HMap>,
+    pub memory: Vec<BTree>,
     pub max_memory: f64,
     pub tree: Vec<usize>,
     // paralellize
-    pub(crate) early_leaves: Arc<RwLock<HashMap<String,Graph>>>,
+    pub(crate) early_leaves: Arc<RwLock<HashMap<u128,Graph>>>,
     pub(crate) config: Config
 }
 
@@ -62,14 +55,14 @@ impl NkComb {
         let g = Graph {
             ady_matrix: ady_mat,
         };
-        Self::from_graph(k, g, 
+        Self::from_graph(k, g,
                          Config { leaf_level: n, save_leaves: false },
                          Arc::new(RwLock::new(HMap::new())),
                          Arc::new(RwLock::new(HashMap::new())),
         )
     }
 
-    pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>, early_leaves:Arc<RwLock<HashMap<String, Graph>>>) -> NkComb {
+    pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>, early_leaves:Arc<RwLock<HashMap<u128, Graph>>>) -> NkComb {
         let n = graph.ady_matrix.len();
         NkComb {
             graph,
@@ -80,7 +73,7 @@ impl NkComb {
             sols: HashMap::new(),
             sols_lock,
             solution_path: vec![SolutionProperties::default(); n/2],
-            memory: vec![HashMap::new(); n + 1],
+            memory: vec![BTreeMap::new(); n + 1],
             tree: vec![0; n + 1],
             max_memory: 0.0,
             config,
@@ -232,23 +225,14 @@ impl NkComb {
     pub fn rec_with_memory( &mut self, current_line: usize){
         self.seen_vertices += 1;
 
-        /*
-        if self.seen_vertices % 100000 == 0 {
-            println!("seen_vertices: {}", self.seen_vertices);
-        }
-        
-         */
-
-
         let S = self.get_available_points();
         if S.is_empty() || current_line > self.config.leaf_level {
             self.process_leaf();
             return;
         }
 
-
         let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
-        if self.memory[current_line].insert(certificate, true).is_some() {
+        if self.memory[current_line].insert(certificate, (gen.clone(),self.graph.clone())).is_some() {
             return;
         }
         
@@ -258,26 +242,6 @@ impl NkComb {
         // println!("Subsets: {:?}", prefixes_holder);
 
         // debug!("prefixes for line {current_line}: \n{:?}", prefixes_holder);
-
-        /*
-        for prefix in &prefixes_holder {
-            self.add_edges(current_line, prefix);
-
-            if self.is_feasible(current_line, prefix) {
-                //if self.print > 0 {
-                //    self.is_feasible(current_line, &prefix);
-
-                // 4. Print the result
-                //     println!("{}  is feasible\n", self.graph.custom_print());
-                // }
-                debug!("feasible line {current_line}: {:?}", prefix);
-            }
-
-            self.remove_edges(current_line, prefix);
-        }
-        
-         */
-
 
         for prefix in prefixes_holder {
             self.add_edges(current_line, &prefix);
@@ -309,9 +273,10 @@ impl NkComb {
 
         // Gets the current graph (or solution prefix) automorphism group generators -> G
         let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
-        if self.memory[S.len()].insert(certificate, true).is_some() {
+        if self.memory[S.len()].insert(certificate, (gen.clone(),self.graph.clone())).is_some() {
             return;
         }
+
         let schreier = Schreier::from_generators(gen);
 
         // Set all the iterators for the non-isomorphic point candidates
@@ -363,6 +328,76 @@ impl NkComb {
                 //self.gather_info(current_line, &prefix);
                 self.rec_over_full_set_with_memory(current_line + 1);
             }
+
+            // reset inplace graph
+            self.remove_edges(current_vertex, prefix);
+        }
+    }
+
+
+    pub fn add_vertex_to_prefix(&mut self, mut cert: u128, mut gen: Vec<Permutation>, graph: Graph, next_vertex: usize, current_list: &mut BTree, solutions: &mut BTree ) {
+        // Early stop or leaf test
+        self.graph = graph;
+        let available_points = self.get_available_points();
+        let available_lines = self.get_available_lines();
+        let mut S = available_points.clone();
+        S.extend(available_lines.clone());
+
+        if S.is_empty(){
+            solutions.insert(cert,(vec![], self.graph.clone()));
+            return;
+        }
+
+        // Gets the current graph (or solution prefix) automorphism group generators -> G
+        if gen.is_empty(){
+            (gen, cert)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+        }
+
+        let schreier = Schreier::from_generators(gen);
+
+        // Set all the iterators for the non-isomorphic point candidates
+        let non_iso_S = self.get_non_isomorfic_available_points(&schreier,S.as_slice());
+        let mut iters = vec![];
+        for s in non_iso_S.as_slice(){
+            let data = schreier.get_orbit(*s, self.n);
+            let schreier_for_stab = Schreier::from_generators(data.stab_generators);
+            if s < &(self.n / 2) {
+                iters.push(SChooseKInG::new(schreier_for_stab, self.n, available_points.as_slice(), self.k - self.graph.ady_matrix[*s].len()));
+            } else {
+                iters.push(SChooseKInG::new(schreier_for_stab, self.n, available_lines.as_slice(), self.k - self.graph.ady_matrix[*s].len()));
+            }
+        }
+
+        let mut prefixes_holders = vec![vec![]; iters.len()];
+        let mut index = 0;
+
+
+        while let Some(prefix) = iters[index].next() {
+            let current_vertex =  non_iso_S[index];
+            self.add_edges(current_vertex, prefix.as_slice());
+
+            if !self.is_feasible(current_vertex, prefix.as_slice()){
+                self.remove_edges(current_vertex, prefix.as_slice());
+                continue;
+            }
+            self.remove_edges(current_vertex, prefix.as_slice());
+
+            prefixes_holders[index].push(prefix);
+            index = (index + 1) % iters.len();
+        }
+
+
+        // Get all possible solutions to extend graph, non-isomorphic in G
+        let mut prefixes_holder = &prefixes_holders[index];
+        let current_vertex = non_iso_S[index];
+
+        // Calculate solution and certs, save them in memory
+        for prefix in prefixes_holder {
+            // add solution to graph
+            self.add_edges(current_vertex, prefix);
+
+            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+            current_list.insert(certificate, (gen,self.graph.clone()));
 
             // reset inplace graph
             self.remove_edges(current_vertex, prefix);
@@ -426,12 +461,18 @@ impl NkComb {
             }
         }
 
-        let canon = self.get_canon_certificate();
-        if self.sols_lock.write().unwrap().insert( canon.clone(), true).is_none() {
+        let (gen, canon)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+
+        if self.sols_lock.write().unwrap().insert( canon, true).is_none() {
             if self.config.save_leaves{
                 self.early_leaves.write().unwrap().insert(canon.clone(), self.graph.clone());
             }
-            //println!("{} {canon}", self.early_leaves.write().unwrap().len());
+            return;
+            println!("{} {canon} => bytes:{} graph: {}",
+                     self.early_leaves.write().unwrap().len(),
+                     general_purpose::STANDARD.encode( self.graph.to_bytes()),
+                     self.graph
+            );
         };
         
         
@@ -491,249 +532,7 @@ impl NkComb {
 }
 
 
-pub fn launch_parallel_p(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
-    let now = Instant::now();
-    let mut n_k_combinatorial = NkComb::new(k);
-    n_k_combinatorial.config = Config{
-        leaf_level,
-        save_leaves: true,
-    };
-    n_k_combinatorial.rec_with_memory(0);
-    let hm = Arc::new(RwLock::new(HashMap::new()));
 
-
-
-    let early_leaves = n_k_combinatorial.early_leaves.read().unwrap().clone();
-    let total_threads = early_leaves.len();
-    let mut threads_done = Arc::new(Mutex::new(0));
-    println!("Task to parallelize:{}", total_threads);
-    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    early_leaves.into_par_iter().for_each(|(canon, leaf)|
-        {
-            // println!("Parallel {i} deployed!");
-            let now = Instant::now();
-            let mut n_k_combinatorial =  NkComb::from_graph(k, 
-                                                            leaf.clone(),
-                                                            Config{leaf_level: leaf_level_2, save_leaves: true},  
-                                                            Arc::new(RwLock::new(HMap::new())),
-                                                            hm.clone(),
-            );
-            n_k_combinatorial.rec_with_memory(leaf_level + 1);
-            {
-                let mut i = threads_done.lock().unwrap();
-                *i += 1;
-
-                if print {
-                    println!("\t{i} done in {:?}, v: {} l:{}",
-                             now.elapsed(),n_k_combinatorial.seen_vertices,
-                             n_k_combinatorial.seen_leaves);
-
-                    println!("\t\t{} ", hm.read().unwrap().len());
-                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
-                }
-            }
-            println!("Threads done: % {} solutions: {} mem: {}", 
-                     *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32,
-                hm.read().unwrap().len(),
-                n_k_combinatorial.max_memory
-            );
-        });
-
-
-
-    let early_leaves = hm.read().unwrap().clone();
-    let total_threads = early_leaves.len();
-    println!("Task to parallelize:{}", total_threads);
-    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    let mut threads_done = Arc::new(Mutex::new(0));
-    let hm = Arc::new(RwLock::new(HMap::new()));
-    early_leaves.into_par_iter().for_each(|(canon, leaf)|
-        {
-            // println!("Parallel {i} deployed!");
-            let now = Instant::now();
-            let mut n_k_combinatorial =  NkComb::from_graph(k, 
-                                                            leaf.clone(),
-                                                            Config{leaf_level: N,save_leaves: false}, 
-                                                            hm.clone(),
-                                                            Arc::new(RwLock::new(HashMap::new())));
-            n_k_combinatorial.rec(leaf_level_2 + 1);
-            {
-                let mut i = threads_done.lock().unwrap();
-                *i += 1;
-            
-                if print {
-                    println!("\t{i} done in {:?}, v: {} l:{}",
-                             now.elapsed(),n_k_combinatorial.seen_vertices,
-                             n_k_combinatorial.seen_leaves);
-    
-                    println!("\t\t{} ", hm.read().unwrap().len());
-                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
-                }
-            }
-            println!("Threads done: % {} used mem: {}", *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32, n_k_combinatorial.max_memory);
-        });
-    let elapsed = now.elapsed();
-
-    //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
-    println!("effective leaves:{:?}", hm.read().unwrap().len());
-    //println!("leaves:{:?}", hm.read().unwrap());
-    println!("Elapsed:{:?}", elapsed);
-    elapsed
-}
-
-
-/**
-* launches parallel correct implementation of pizaña et al, only one level
-*/
-pub fn launch_parallel_full_p(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
-    let now = Instant::now();
-    let mut n_k_combinatorial = NkComb::new(k);
-    n_k_combinatorial.config = Config{
-        leaf_level,
-        save_leaves: true,
-    };
-    n_k_combinatorial.rec_over_full_set_with_memory(0);
-    let hm = Arc::new(RwLock::new(HashMap::new()));
-
-
-
-    let early_leaves = n_k_combinatorial.early_leaves.read().unwrap().clone();
-    let total_threads = early_leaves.len();
-    let mut threads_done = Arc::new(Mutex::new(0));
-    println!("Task to parallelize:{}", total_threads);
-    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    early_leaves.into_par_iter().for_each(|(canon, leaf)|
-        {
-            // println!("Parallel {i} deployed!");
-            let now = Instant::now();
-            let mut n_k_combinatorial =  NkComb::from_graph(k,
-                                                            leaf.clone(),
-                                                            Config{leaf_level: leaf_level_2, save_leaves: true},
-                                                            Arc::new(RwLock::new(HMap::new())),
-                                                            hm.clone(),
-            );
-            n_k_combinatorial.rec_over_full_set_with_memory(leaf_level + 1);
-            {
-                let mut i = threads_done.lock().unwrap();
-                *i += 1;
-
-                if print {
-                    println!("\t{i} done in {:?}, v: {} l:{}",
-                             now.elapsed(),n_k_combinatorial.seen_vertices,
-                             n_k_combinatorial.seen_leaves);
-
-                    println!("\t\t{} ", hm.read().unwrap().len());
-                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
-                }
-            }
-
-            println!("Threads done: % {} solutions: {} mem: {}",
-                     *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32,
-                     hm.read().unwrap().len(),
-                     n_k_combinatorial.max_memory
-            );
-        });
-    let elapsed = now.elapsed();
-
-    //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
-    println!("effective leaves:{:?}", hm.read().unwrap().len());
-    //println!("leaves:{:?}", hm.read().unwrap());
-    println!("Elapsed:{:?}", elapsed);
-    elapsed
-}
-
-/**
-* launches parallel correct implementation of pizaña et al, teo parallel levels
-*/
-pub fn launch_parallel_full_p_2(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
-    let now = Instant::now();
-    let mut n_k_combinatorial = NkComb::new(k);
-    n_k_combinatorial.config = Config{
-        leaf_level,
-        save_leaves: true,
-    };
-    n_k_combinatorial.rec_over_full_set_with_memory(0);
-    let hm = Arc::new(RwLock::new(HashMap::new()));
-
-
-
-    let early_leaves = n_k_combinatorial.early_leaves.read().unwrap().clone();
-    let total_threads = early_leaves.len();
-    let mut threads_done = Arc::new(Mutex::new(0));
-    println!("Task to parallelize:{}", total_threads);
-    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    early_leaves.into_par_iter().for_each(|(canon, leaf)|
-        {
-            // println!("Parallel {i} deployed!");
-            let now = Instant::now();
-            let mut n_k_combinatorial =  NkComb::from_graph(k,
-                                                            leaf.clone(),
-                                                            Config{leaf_level: leaf_level_2, save_leaves: true},
-                                                            Arc::new(RwLock::new(HMap::new())),
-                                                            hm.clone(),
-            );
-            n_k_combinatorial.rec_over_full_set_with_memory(leaf_level + 1);
-            {
-                let mut i = threads_done.lock().unwrap();
-                *i += 1;
-
-                if print {
-                    println!("\t{i} done in {:?}, v: {} l:{}",
-                             now.elapsed(),n_k_combinatorial.seen_vertices,
-                             n_k_combinatorial.seen_leaves);
-
-                    println!("\t\t{} ", hm.read().unwrap().len());
-                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
-                }
-            }
-
-            println!("Threads done: % {} solutions: {} mem: {}",
-                     *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32,
-                     hm.read().unwrap().len(),
-                     n_k_combinatorial.max_memory
-            );
-        });
-
-    let early_leaves = hm.read().unwrap().clone();
-    let total_threads = early_leaves.len();
-    println!("Task to parallelize:{}", total_threads);
-    //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
-    let mut threads_done = Arc::new(Mutex::new(0));
-    let hm = Arc::new(RwLock::new(HMap::new()));
-    early_leaves.into_par_iter().for_each(|(canon, leaf)|
-        {
-            // println!("Parallel {i} deployed!");
-            let now = Instant::now();
-            let mut n_k_combinatorial =  NkComb::from_graph(k,
-                                                            leaf.clone(),
-                                                            Config{leaf_level: N,save_leaves: false},
-                                                            hm.clone(),
-                                                            Arc::new(RwLock::new(HashMap::new())));
-            n_k_combinatorial.rec_over_full_set_with_memory(leaf_level_2 + 1);
-            {
-                let mut i = threads_done.lock().unwrap();
-                *i += 1;
-
-                if print {
-                    println!("\n\t{i} done in {:?}, v: {} l:{}",
-                             now.elapsed(),n_k_combinatorial.seen_vertices,
-                             n_k_combinatorial.seen_leaves);
-
-                    println!("\t\t{} ", hm.read().unwrap().len());
-                    println!("\t{i} used memory: {}", n_k_combinatorial.max_memory)
-                }
-            }
-            println!("Threads done: % {} used mem: {}", *threads_done.lock().unwrap() as f32 * 100.0 / total_threads as f32, n_k_combinatorial.max_memory);
-        });
-
-    let elapsed = now.elapsed();
-
-    //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
-    println!("effective leaves:{:?}", hm.read().unwrap().len());
-    //println!("leaves:{:?}", hm.read().unwrap());
-    println!("Elapsed:{:?}", elapsed);
-    elapsed
-}
 
 #[test]
 fn test_n_comb() {
@@ -748,6 +547,8 @@ fn test_n_comb() {
     for (i, val) in nkComb.tree.iter().enumerate() {
         println!("  {}, {}", i, val);
     }
+
+    // 18 446 741 950 994 212 328
 
     let mut nkComb = NkComb::new(4);
     nkComb.config = Config{leaf_level: N, save_leaves: true};

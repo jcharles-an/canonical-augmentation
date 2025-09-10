@@ -1,3 +1,4 @@
 pub mod n_k_combinatorial;
 pub mod base_configs;
-pub(crate) mod NkCom;
+pub mod NkCom;
+pub(crate) mod NkCombManager;

@@ -1,17 +1,61 @@
+use std::fmt::Display;
+use libc::signal;
 use nauty_Traces_sys::{empty_graph, graph, ADDONEEDGE, SETWORDSNEEDED};
 use petgraph::graph::NodeIndex;
 use petgraph::Undirected;
 use crate::{data_structs};
 use crate::data_structs::bitmaps::{BM, BMC, BMConf};
-use crate::data_structs::consts::{DEGREE, N, N_CONF};
+use crate::data_structs::consts::{DEGREE, N, N_CONF, STORE_BYTES};
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug,Ord, PartialOrd, Eq, PartialEq)]
 pub struct Graph {
     pub ady_matrix: Vec<BM>,
 }
 
+impl Display for Graph {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let format = self.ady_matrix.iter().fold("".to_string(), |acc, x| { format!("{acc}:{x:?}")});
+
+        write!(f, "{}",&format[1..])
+    }
+}
+
 
 impl Graph {
+
+    /** encoding format is 1 byte for length, then 'length' bytes for value eg
+    * 1c00 -> 02 00 1c (two bytes, then the two bytes for value)
+    * 18400 -> 03 00 84 01
+    */
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let bytes = self.ady_matrix.iter().fold(Vec::new(), |mut acc, x| {
+
+            let empty_bytes = (x.as_value().leading_zeros() / 8) as usize;
+            let effective_length = STORE_BYTES - empty_bytes; // for bitmaps of size less than 256 this can perfectly fit in a u8
+
+            acc.extend_from_slice(&[effective_length as u8]);
+            acc.extend_from_slice(x.as_bytes()[0..effective_length].as_ref());
+            acc
+        });
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Graph {
+        let mut ady_matrix = Vec::with_capacity(N);
+        let mut offset = 0;
+        while offset < bytes.len() {
+            let length = bytes[offset] as usize;
+            let mut vec = bytes[offset + 1 .. offset + 1 + length].to_vec();
+            offset += 1 + length;
+            vec.resize(STORE_BYTES, 0);
+
+            ady_matrix.push(BM::try_from(vec.as_slice()).unwrap());
+        }
+        Graph{
+            ady_matrix
+        }
+    }
+
     pub fn is_set_dominant(&self, set: &BM) -> bool {
         for list in self.ady_matrix.iter() {
             if (*list & *set).len() == 0 {
@@ -165,6 +209,18 @@ impl Graph {
         dot_output.push_str("}\n");
         dot_output
     }
+
+    pub fn from_string(graph_string: &str) -> Graph {
+        let mut ady_matrix = Vec::with_capacity(N);
+        for (i, val) in graph_string.split(":").enumerate() {
+            ady_matrix.push(BM::from_value(u16::from_str_radix(val,16).unwrap().into()));
+        }
+        Graph{
+            ady_matrix
+        }
+    }
+
+
     
 }
 
@@ -223,5 +279,41 @@ fn graph_test() {
     ]);
 
     println!("{:?}", d.into_value());
+
+}
+
+#[test]
+fn test_parsing(){
+    let graph_string = "1e000:0:0:0:0:0:0:0:0:0:0:0:0:1:1:1:1:0:0:0:0:0:0:0:0:0";
+    let g = Graph::from_string(graph_string);
+    let g_1 = format!("{}", g).trim().to_string();
+    println!("{}", g_1);
+
+    assert_eq!(graph_string, &g_1);
+}
+
+#[test]
+fn encodings(){
+}
+
+
+#[test]
+fn test_bytes(){
+    let mut graph = Graph { ady_matrix: vec![
+        data_structs::bitmaps::from_BE_array(&[1, 1, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[1, 1, 1, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 1, 1, 1, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 1, 1, 1, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 1, 1, 1]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 1, 1]),
+    ] };
+
+    println!("{:?}", graph);
+
+   let bytes = graph.to_bytes();
+    println!("{:?}", bytes);
+
+    let graph_from = Graph::from_bytes(&bytes);
+    println!("{:?}", graph_from);
 
 }
