@@ -6,6 +6,7 @@ use petgraph::Undirected;
 use crate::{data_structs};
 use crate::data_structs::bitmaps::{BM, BMC, BMConf};
 use crate::data_structs::consts::{DEGREE, N, N_CONF, STORE_BYTES};
+use crate::data_structs::nauty_graph::NautyGraph;
 
 #[derive(Clone,Debug,Ord, PartialOrd, Eq, PartialEq)]
 pub struct Graph {
@@ -130,6 +131,10 @@ impl Graph {
     pub fn remove_edge(&mut self, v: usize,w: usize){
         self.ady_matrix[v].set(w,false);
         self.ady_matrix[w].set(v,false);
+    }
+    
+    pub fn has_edge(&mut self, v: usize,w: usize) -> bool {
+        self.ady_matrix[v].get(w) && self.ady_matrix[w].get(v)
     }
 
 
@@ -316,4 +321,26 @@ fn test_bytes(){
     let graph_from = Graph::from_bytes(&bytes);
     println!("{:?}", graph_from);
 
+}
+
+#[test]
+fn nauty(){
+    let mut graph = Graph { ady_matrix: vec![
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+        data_structs::bitmaps::from_BE_array(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    ] };
+
+    let nauty_graph = NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
 }

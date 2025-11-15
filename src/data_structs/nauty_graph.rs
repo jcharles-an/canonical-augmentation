@@ -40,6 +40,7 @@ impl NautyGraph {
         }
 
         let lab = (0..n).map(|x| x as c_int).collect::<Vec<c_int>>();
+        // ptn 0 in half an in the end, to mark color end
         let mut ptn = vec![1 as c_int; n];
         ptn[n/2 - 1] = 0;
         ptn[n - 1] = 0;

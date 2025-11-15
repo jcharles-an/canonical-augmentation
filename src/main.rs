@@ -2,7 +2,6 @@
 #![allow(unused)]
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
-extern crate core;
 
 use std::collections::HashMap;
 use std::env;
@@ -60,7 +59,7 @@ fn main() {
     env_logger::init();
     let args: Vec<String> = env::args().collect();
 
-    let mut k = 3;
+    let mut k = 4;
     let mut save_gen = false;
     if args.len() > 1 {
         k = args[1].parse::<usize>().unwrap();
@@ -69,7 +68,7 @@ fn main() {
 
     // manager(N,4,10);
 
-    parallel_manager(N,k,20, save_gen);
+    parallel_manager(N,k,10, save_gen);
     return;
     let args: Vec<String> = env::args().collect();
     let mut k = 3;

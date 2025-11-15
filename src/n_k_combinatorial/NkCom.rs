@@ -14,6 +14,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use base64::Engine;
 use base64::engine::general_purpose;
+use libc::printf;
 use crate::data_structs::cert_graph::CertGraph;
 use crate::schreier::permutation::Permutation;
 
@@ -41,8 +42,9 @@ pub(crate) struct NkComb {
     pub sols_lock: Arc<RwLock<HMap>>,
     pub solution_path: Vec<SolutionProperties>,
     pub memory: Vec<BTree>,
+    pub trace: Vec<(usize, Vec<usize>)>,
     pub max_memory: f64,
-    pub tree: Vec<usize>,
+    pub tree: Vec<(usize, usize)>,
     // paralellize
     pub(crate) early_leaves: Arc<RwLock<HashMap<u128,Graph>>>,
     pub(crate) config: Config
@@ -62,6 +64,14 @@ impl NkComb {
         )
     }
 
+    pub fn from_graph_simple(k: usize, graph: Graph) -> NkComb {
+        let n = N;
+        Self::from_graph(k, graph,
+                         Config { leaf_level: n, save_leaves: false },
+                         Arc::new(RwLock::new(HMap::new())),
+                         Arc::new(RwLock::new(HashMap::new())),
+        )
+    }
     pub fn from_graph(k: usize, graph: Graph, config: Config, sols_lock: Arc<RwLock<HMap>>, early_leaves:Arc<RwLock<HashMap<u128, Graph>>>) -> NkComb {
         let n = graph.ady_matrix.len();
         NkComb {
@@ -74,7 +84,8 @@ impl NkComb {
             sols_lock,
             solution_path: vec![SolutionProperties::default(); n/2],
             memory: vec![BTreeMap::new(); n + 1],
-            tree: vec![0; n + 1],
+            trace: vec![],
+            tree: vec![(0,0); n + 1],
             max_memory: 0.0,
             config,
             early_leaves: early_leaves,
@@ -88,7 +99,7 @@ impl NkComb {
         // Early stop or leaf test
         let S = self.get_available_points();
         if S.is_empty() || current_line > self.config.leaf_level {
-            self.process_leaf();
+            self.process_leaf(current_line);
             return;
         }
 
@@ -104,6 +115,7 @@ impl NkComb {
         let mut iter = SChooseKInG::new(schreier.clone(), self.n, &S, self.k);
         let mut prefixes_holder = iter.collect::<Vec<_>>();
 
+        self.tree[current_line].0 += prefixes_holder.len();
 
         for prefix in prefixes_holder {
             // add solution to graph
@@ -119,7 +131,7 @@ impl NkComb {
         }
     }
 
-    pub fn rec_over_full_set( &mut self, current_line: usize){
+    pub fn rec_over_full_set( &mut self, current_line: usize, remember: bool){
         self.seen_vertices += 1;
 
         // Early stop or leaf test
@@ -129,68 +141,76 @@ impl NkComb {
         S.extend(available_lines.clone());
 
         if S.is_empty() {
-            self.process_leaf();
+            self.process_leaf(current_line);
             return;
         }
 
         // Gets the current graph (or solution prefix) automorphism group generators -> G
-        let (gen, canon)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+        let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+        if remember && self.memory[S.len()].insert(certificate, (gen.clone(),self.graph.clone())).is_some() {
+            return;
+        }
         let schreier = Schreier::from_generators(gen);
 
-        // Set all the iterators for the non-isomorphic point candidates
+        // Get all the equivalence class representatives in S, according to G
         let non_iso_S = self.get_non_isomorfic_available_points(&schreier,S.as_slice());
-        let mut iters = vec![];
+
+        let second = non_iso_S.clone().into_iter().filter(|x| x < &&9 ).rev().collect::<Vec<usize>>();
+        let mut non_iso_S = non_iso_S.clone().into_iter().filter(|x| x >= &&9 ).rev().collect::<Vec<usize>>();
+
+        non_iso_S.extend(second);
+
+
+        // Set all the iterators for the non-isomorphic point candidates
+        let mut s_choose_k_in_g_iterator = vec![];
         for s in non_iso_S.as_slice(){
+            // get subgroup of G with s fixed
             let data = schreier.get_orbit(*s, self.n);
             let schreier_for_stab = Schreier::from_generators(data.stab_generators);
-            if s < &(self.n / 2) {
-                iters.push(SChooseKInG::new(schreier_for_stab, self.n, available_points.as_slice(), self.k - self.graph.ady_matrix[*s].len()));
+
+            // Get k - |s.neighbors| non-isomorph subset
+            let potential_s_neighbors = if s < &(self.n / 2) {
+                available_points.as_slice()
             } else {
-                iters.push(SChooseKInG::new(schreier_for_stab, self.n, available_lines.as_slice(), self.k - self.graph.ady_matrix[*s].len()));
-            }
+                available_lines.as_slice()
+            };
+            s_choose_k_in_g_iterator.push(SChooseKInG::new(schreier_for_stab, self.n, potential_s_neighbors, self.k - self.graph.ady_matrix[*s].len()));
         }
 
-        let mut prefixes_holders = vec![vec![]; iters.len()];
-        let mut index = 0;
-
-
-
-
-        while let Some(prefix) = iters[index].next() {
+        // Evaluate each iterator once, to know which has the least solutions
+        let mut feasible_extenders = vec![vec![]; s_choose_k_in_g_iterator.len()];
+        let mut index = s_choose_k_in_g_iterator.len() - 1;
+        while let Some(extender_representative) = s_choose_k_in_g_iterator[index].next() {
             let current_vertex =  non_iso_S[index];
-            self.add_edges(current_vertex, prefix.as_slice());
 
-            if !self.is_feasible(current_vertex, prefix.as_slice()){
-                self.remove_edges(current_vertex, prefix.as_slice());
+            // extend prefix, advance only if it is valid
+            self.add_edges(current_vertex, extender_representative.as_slice());
+            if !self.is_feasible(current_vertex, extender_representative.as_slice()){
+                self.remove_edges(current_vertex, extender_representative.as_slice());
                 continue;
             }
-            self.remove_edges(current_vertex, prefix.as_slice());
+            self.remove_edges(current_vertex, extender_representative.as_slice());
 
-            prefixes_holders[index].push(prefix);
-            index = (index + 1) % iters.len();
+            // push feasible extender and advance index
+            feasible_extenders[index].push(extender_representative);
+            index = index.checked_sub(1).unwrap_or(s_choose_k_in_g_iterator.len() -1);
         }
 
-
         // Get all possible solutions to extend graph, non-isomorphic in G
-        let mut prefixes_holder = &prefixes_holders[index];
+        let mut chosen_feasible_extenders = &feasible_extenders[index];
         let current_vertex = non_iso_S[index];
 
-        //println!("prefixes for vertex {}: {}", current_vertex, prefixes_holder.len());
+        self.tree[current_line].0 += chosen_feasible_extenders.len();
 
-
-        self.tree[current_line] += prefixes_holder.len();
-
-        for prefix in prefixes_holder {
+        for extender in chosen_feasible_extenders {
             // add solution to graph
-            self.add_edges(current_vertex, prefix);
-
-            if self.is_feasible(current_vertex, prefix) {
-                //self.gather_info(current_line, &prefix);
-                self.rec_over_full_set(current_line + 1);
-            }
-
+            self.add_edges(current_vertex, extender);
+            self.trace.push((current_vertex, extender.clone()));
+            self.rec_over_full_set(current_line - 1, remember);
             // reset inplace graph
-            self.remove_edges(current_vertex, prefix);
+            self.remove_edges(current_vertex, extender);
+            self.trace.pop();
+
         }
     }
 
@@ -200,7 +220,7 @@ impl NkComb {
         for s in S_vector {
             S |= 1usize << s
         }
-        for index in 0..self.n {
+        for index in (0..self.n).rev() {
             // if element i is not on local_available_S, continue
             if (S >> index) & 1 == 0 {
                 continue;
@@ -227,7 +247,7 @@ impl NkComb {
 
         let S = self.get_available_points();
         if S.is_empty() || current_line > self.config.leaf_level {
-            self.process_leaf();
+            self.process_leaf(current_line);
             return;
         }
 
@@ -242,6 +262,8 @@ impl NkComb {
         // println!("Subsets: {:?}", prefixes_holder);
 
         // debug!("prefixes for line {current_line}: \n{:?}", prefixes_holder);
+
+        self.tree[current_line].0 += prefixes_holder.len();
 
         for prefix in prefixes_holder {
             self.add_edges(current_line, &prefix);
@@ -265,7 +287,7 @@ impl NkComb {
         S.extend(available_lines.clone());
 
         if S.is_empty()  || current_line > self.config.leaf_level {
-            self.process_leaf();
+            self.process_leaf(current_line);
             return;
         }
 
@@ -317,7 +339,7 @@ impl NkComb {
 
         // println!("prefixes for vertex {}: {}", current_vertex, prefixes_holder.len());
 
-        self.tree[current_line] += prefixes_holder.len();
+        self.tree[current_line].0 += prefixes_holder.len();
 
 
         for prefix in prefixes_holder {
@@ -451,9 +473,30 @@ impl NkComb {
         true
     }
 
+    fn get_possible_children(&mut self) -> Vec<Graph>{
+        let available_points = self.get_available_points();
+        let available_lines = self.get_available_lines();
+        let mut possible_children = vec![];
+        for point in &available_points {
+            for line in &available_lines {
+                if self.graph.has_edge(*point,*line){
+                    continue;
+                }
+                let ends =[*line];
+                self.add_edges(*point, ends.as_slice());
+                if self.is_feasible(*point, ends.as_slice()){
+                    possible_children.push(self.graph.clone());
+                }
+                self.remove_edges(*point, ends.as_slice());
+            }
+        }
+        possible_children
+    }
 
-    fn process_leaf(&mut self){
+
+    fn process_leaf(&mut self, current_line: usize){
         self.seen_leaves += 1;
+        self.tree[current_line].1 += 1;
         if let Some(usage) = memory_stats() {
             let memory = usage.physical_mem as f64 / (1024.0 * 1024.0);
             if self.max_memory < memory {
@@ -462,6 +505,25 @@ impl NkComb {
         }
 
         let (gen, canon)= NautyGraph::get_aut_generators_and_cert(&self.graph).unwrap();
+
+        println!("\ncanon:{canon}:");
+        /*
+        println!("[");
+        for element in &self.trace {
+            println!("\t{:?}",element);
+        }
+        println!("]");
+         */
+
+        println!("Graph:\n[");
+        for i in 0..self.graph.ady_matrix.len() {
+            print!("\t{i:02},\t[");
+            for j in &self.graph.ady_matrix[i]{
+                print!("{j:02}, ");
+            }
+            println!("]");
+        }
+        println!("]");
 
         if self.sols_lock.write().unwrap().insert( canon, true).is_none() {
             if self.config.save_leaves{
@@ -529,6 +591,32 @@ impl NkComb {
         }
         certificate.to_string()
     }
+
+
+    pub fn canaug(k: usize, graph: Graph, level: usize) {
+        let mut nkComb = NkComb::from_graph_simple(k,graph);
+
+        let S = nkComb.get_available_points();
+        if S.is_empty() || level > 5 {
+            println!("sol: {}", nkComb.graph);
+            return;
+        }
+
+        let children = nkComb.get_possible_children();
+        println!("level {level} found {} possible children", children.len());
+        let mut children_certs = HashMap::new();
+        for child in children {
+            // println!("{level} : {}", child.custom_print());
+            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&child).unwrap();
+            if children_certs.insert(certificate,true).is_some() {
+                continue
+            }
+            Self::canaug(k, child, level + 1);
+        }
+
+
+    }
+
 }
 
 
@@ -536,29 +624,78 @@ impl NkComb {
 
 #[test]
 fn test_n_comb() {
-    let mut nkComb = NkComb::new(4);
+
+    /*
+    let k = 3;
+    let mut nkComb = NkComb::new(k);
     nkComb.config = Config{leaf_level: N, save_leaves: true};
     let now = Instant::now();
-    nkComb.rec_over_full_set(0);
+    nkComb.rec(0);
     let duration = now.elapsed();
+    println!("\n{N_CONF}_{k}  Without memory:");
     println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
     println!("Time elapsed: {:?}", duration);
     println!("TREE: \n");
-    for (i, val) in nkComb.tree.iter().enumerate() {
-        println!("  {}, {}", i, val);
+    for (i, (extensions, sols)) in nkComb.tree.iter().enumerate() {
+        println!("\t{}\t{}\t{}", i, extensions,sols);
     }
+
+     */
+
+
+    let k = 3;
+    let mut nkComb = NkComb::new(k);
+    nkComb.config = Config{leaf_level: N, save_leaves: true};
+    let now = Instant::now();
+    nkComb.rec_over_full_set(N_CONF, false);
+    let duration = now.elapsed();
+    println!("\n{N_CONF}_{k}  Without memory:");
+    println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
+    println!("Time elapsed: {:?}", duration);
+    println!("TREE: \n");
+    for (i, (extensions, sols)) in nkComb.tree.iter().enumerate() {
+        println!("\t{}\t{}\t{}", i, extensions,sols);
+    }
+
+    return;
 
     // 18 446 741 950 994 212 328
-
-    let mut nkComb = NkComb::new(4);
+    let mut nkComb = NkComb::new(k);
     nkComb.config = Config{leaf_level: N, save_leaves: true};
     let now = Instant::now();
-    nkComb.rec_over_full_set_with_memory(0);
+    nkComb.rec_over_full_set(N_CONF, true);
     let duration = now.elapsed();
+    println!("\n{N_CONF}_{k}  With memory:");
     println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
     println!("Time elapsed: {:?}", duration);
     println!("TREE: \n");
-    for (i, val) in nkComb.tree.iter().enumerate() {
-        println!("  {}, {}", i, val);
+    for (i, (extensions, sols)) in nkComb.tree.iter().enumerate() {
+        println!("\t{}\t{}\t{}", i, extensions,sols);
     }
+}
+
+#[test]
+fn test_get_children(){
+    let k = 3;
+    let mut nkComb = NkComb::new(k);
+    let graphs = nkComb.get_possible_children();
+
+    let mut children_certs = HashMap::new();
+    for graph in graphs {
+        println!("{}", graph.custom_print());
+        let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
+        children_certs.insert(certificate,graph);
+    }
+
+    println!("{:?}", children_certs);
+
+}
+
+#[test]
+fn test_canaug(){
+    let ady_mat = vec![BM::new();N];
+    let g = Graph {
+        ady_matrix: ady_mat,
+    };
+    NkComb::canaug(3,g,0)
 }

@@ -1,17 +1,24 @@
 use rayon::iter::ParallelIterator;
 use std::collections::{BTreeMap, HashMap};
+use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
+use glob::glob;
 use log::info;
-use memmap2::MmapMut;
+use memmap2::{MmapMut, MmapOptions};
 use nauty_Traces_sys::graph;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::IndexedParallelIterator;
 use rayon::prelude::{ParallelSlice, ParallelSliceMut};
+use regex::Regex;
 use crate::data_structs::bitmaps::BM;
-use crate::data_structs::cert_graph_file::{CertGraphFile, MmapCertReader};
+use crate::data_structs::cert_graph::CertGraph;
+use crate::data_structs::cert_graph_file::{CertGraphFile, MmapCertReader, SliceReader};
 use crate::data_structs::consts::{BTree, GraphInfo, HMap, SolutionsBTree, N, N_CERT, N_CONF};
 use crate::data_structs::graph::Graph;
+use crate::data_structs::iterator_merger::IteratorMerger;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::n_k_combinatorial::NkCom::{Config, NkComb};
 use crate::n_k_combinatorial::NkCombManager;
@@ -22,6 +29,18 @@ pub fn get_extended_prefix_b_tree(k: usize, current_vertex: usize, graphsInfo: V
     let mut solutions = BTreeMap::new();
     let mut n_k_combinatorial = NkComb::new(k);
     for graphInfo in graphsInfo {
+        n_k_combinatorial.add_vertex_to_prefix(graphInfo.cert, graphInfo.gen, graphInfo.graph, current_vertex, &mut extensions, &mut solutions);
+    }
+    (extensions, solutions)
+}
+
+pub fn get_extended_prefix_b_tree_from_bytes(k: usize, current_vertex: usize, graph_bytes: &[u8]) -> (BTree, BTree) {
+    let mut extensions = BTreeMap::new();
+    let mut solutions = BTreeMap::new();
+    let mut n_k_combinatorial = NkComb::new(k);
+    let mut sliceReader = SliceReader::new(graph_bytes);
+
+    for graphInfo in sliceReader {
         n_k_combinatorial.add_vertex_to_prefix(graphInfo.cert, graphInfo.gen, graphInfo.graph, current_vertex, &mut extensions, &mut solutions);
     }
     (extensions, solutions)
@@ -325,7 +344,7 @@ pub fn launch_parallel_full_p_2(k: usize, leaf_level: usize, leaf_level_2: usize
 }
 
 
-pub fn manager(n:usize, k:usize, cores: usize){
+pub fn manager(n:usize, k:usize){
     let now = Instant::now();
     let ady_mat = vec![BM::new();n];
     let g = Graph {
@@ -368,25 +387,68 @@ pub fn manager(n:usize, k:usize, cores: usize){
 pub fn parallel_manager(n:usize, k:usize, cores: usize, save_gen: bool){
     let file_prefix = format!("results/{}_{}", N_CONF, k);
     let now = Instant::now();
-    let ady_mat = vec![BM::new();n];
-    let g = Graph {
-        ady_matrix: ady_mat,
-    };
-    let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&g).unwrap();
-
-    let mut graphs:Vec<GraphInfo> = vec![GraphInfo::new(certificate, gen, g)];
     let mut current_vertex = 0;
-    let mut count = 0;
-    let mut global_solutions = vec![];
 
-    while !graphs.is_empty() {
+
+    let last =  glob(format!("./{}/g_*_c_{cores}.bin", file_prefix).as_str()).expect("Failed to read glob pattern").last();
+    let mut graphs_mmap = if last.is_some(){
+        let res = last.unwrap().unwrap();
+        let backing_file = fs::OpenOptions::new()
+            .read(true)
+            .append(true)
+            .create(true)
+            .write(true)
+            .open(&res).unwrap();
+
+        let filename = res.file_name().unwrap().to_str().unwrap();
+
+        let re = Regex::new(r"g_l_(\d+)_c.*").unwrap();
+
+        // Search the text for a match
+        let caps = re.captures(filename).unwrap();
+        // The first capture group (index 1) contains the integer string
+        // The full match is at index 0
+        let int_str = caps.get(1).map(|m| m.as_str()).unwrap();
+
+        current_vertex = int_str.parse::<usize>().unwrap();
+
+        unsafe { MmapMut::map_mut(&backing_file).unwrap() }
+    } else {
+        CertGraphFile::get_initial_mmap(n)
+    };
+
+
+    let mut sols_mmap = if current_vertex > 0 {
+        let sol_file = format!("./{}/s_l_{:02}_c_{cores}.bin", file_prefix, current_vertex);
+
+        let backing_file = OpenOptions::new()
+            .read(true)
+            .append(true)
+            .create(true)
+            .write(true)
+            .open(sol_file).unwrap();
+        unsafe { MmapMut::map_mut(&backing_file).unwrap() }
+    } else {
+        CertGraphFile::get_empty_mmap(n)
+    };
+
+
+
+    let mut graphs_count = CertGraphFile::get_graphs_number(&graphs_mmap);
+
+    while graphs_count > 0 {
+
 
         //prepare graphs for cores
-        let chunk_size = (graphs.len() as f64/ cores as f64).ceil() as usize;
-        let chunk_size = 200_000;
-        let chunks = (graphs.len() as f64/ chunk_size as f64).ceil() as usize;
+        let chunk_size = (graphs_count as f64/ cores as f64).ceil() as usize;
+        let chunk_size = std::cmp::min(500_000, chunk_size);
+        let chunks = (graphs_count as f64/ chunk_size as f64).ceil() as usize;
         info!("Chunk size: {} chunks: {}", chunk_size, chunks);
-        let parallel_loads: Vec<((MmapCertReader,MmapCertReader),(usize,usize))> = graphs.par_chunks(chunk_size).enumerate().map(|(i,chunk)|{
+        let indexes = CertGraphFile::get_chuck_indexes(&graphs_mmap, chunk_size);
+
+
+        // launch parallel tasks
+        let parallel_loads: Vec<((MmapCertReader,MmapCertReader),(usize,usize))> = indexes.par_windows(2).enumerate().map(|(i,window)|{
 
             let now = Instant::now();
 
@@ -404,11 +466,14 @@ pub fn parallel_manager(n:usize, k:usize, cores: usize, save_gen: bool){
             let sol_bytes_size :usize;
 
             if !(level_graphs_result.is_ok() && level_sols_result.is_ok()) {
-                let (graphs, solutions) = get_extended_prefix_b_tree(k,current_vertex,chunk.to_vec());
+                // extend the current chunk
+                info!["level_{current_vertex:02}_cores_{cores:.03}_chunk_{i:02} extension starting..."];
+                let (graphs, solutions) = get_extended_prefix_b_tree_from_bytes(k,current_vertex,&graphs_mmap[window[0]..window[1]]);
 
                 (mmap, graph_bytes_size) = CertGraphFile::save_list(graphs, &g_filename, save_gen ).unwrap();
                 (sol_mmap, sol_bytes_size) = CertGraphFile::save_list(solutions, &s_filename, false).unwrap();
             } else {
+                info!["level_{current_vertex:02}_cores_{cores:.03}_chunk_{i:02} previous results found!"];
                 mmap = level_graphs_result.unwrap();
                 graph_bytes_size = mmap.len();
                 sol_mmap = level_sols_result.unwrap();
@@ -417,26 +482,47 @@ pub fn parallel_manager(n:usize, k:usize, cores: usize, save_gen: bool){
             info!["level_{current_vertex:02}_cores_{cores:.03}_chunk_{i:02} done in {:?}!", now.elapsed()];
             ((MmapCertReader::new(mmap), MmapCertReader::new(sol_mmap)), (graph_bytes_size, sol_bytes_size))
         }).collect();
+
+        //Collect parallel tasks resultas
         let (mmaps, sizes) : (Vec<(MmapCertReader, MmapCertReader)>, Vec<(usize,usize)>) = parallel_loads.into_iter().unzip();
-        let (graphMmaps, solMmaps) : (Vec<MmapCertReader>, Vec<MmapCertReader>)= mmaps.into_iter().unzip();
+        let (graphMmaps, mut solMmaps) : (Vec<MmapCertReader>, Vec<MmapCertReader>)= mmaps.into_iter().unzip();
         let (graph_bytes, sol_bytes) : (Vec<usize>, Vec<usize>)= sizes.into_iter().unzip();
 
 
         info!["level_{current_vertex:02} done! Now merging..."];
         let now = Instant::now();
-        graphs = merge_sorted(graphMmaps);
-        let solutions = merge_sorted(solMmaps);
+
+        let g_filename = format!["{file_prefix}/g_l_{current_vertex:02}_c_{cores}.bin"];
+        (graphs_mmap, graphs_count) = CertGraphFile::save_and_merge_iter(graphMmaps, &g_filename, save_gen ).unwrap();
+        if current_vertex > 0 {
+            let g_filename = format!["{file_prefix}/g_l_{:02}_c_{cores}.bin", current_vertex - 1];
+            fs::remove_file(g_filename);
+        }
+
+
+        let s_filename = format!["{file_prefix}/s_l_{current_vertex:02}_c_{cores}.bin"];
+        solMmaps.push(MmapCertReader::new(sols_mmap));
+        let mut sol_count = 0;
+        (sols_mmap, sol_count) = CertGraphFile::save_and_merge_iter(solMmaps, &s_filename, save_gen ).unwrap();
+        if current_vertex > 0 {
+            let s_filename = format!["{file_prefix}/s_l_{:02}_c_{cores}.bin", current_vertex - 1];
+            fs::remove_file(s_filename);
+        }
+
+
+        for result in glob(format!("./{}/*chunk*.bin", file_prefix).as_str()).expect("Failed to read glob pattern") {
+            fs::remove_file(result.unwrap());
+        }
+
         info!["level_{current_vertex:02} done merging in {:?}",now.elapsed()];
 
         let a:usize = graph_bytes.into_iter().sum();
         let b:usize = sol_bytes.into_iter().sum();
         info!["{current_vertex}\t{}\t{}\t{}\t{}\n",
-            graphs.len(),
-            solutions.len(),
+            graphs_count,
+            sol_count,
             a as f64 / 1024.0f64.powi(2),
             b as f64 / 1024.0f64.powi(2)];
-
-        global_solutions.push(solutions.into_iter().map(|graph_info: GraphInfo| graph_info.cert) );
         current_vertex += 1;
     }
     let elapsed_traversing = now.elapsed();
@@ -446,16 +532,11 @@ pub fn parallel_manager(n:usize, k:usize, cores: usize, save_gen: bool){
 
 
     if (false){
-        for (i,sol) in global_solutions.into_iter().enumerate() {
-            let so: Vec<u128> = sol.collect();
-            info!["{i} sol: {:?}",so];
+        for (i,sol) in MmapCertReader::new(sols_mmap).into_iter().enumerate() {
+            info!["{i} sol: {:?}",sol.cert];
         }
     } else {
-        let sols = merge_sorted(global_solutions);
-        let elapsed_ordering = now.elapsed();
-        info!["Total solutions found: {}", sols.len()];
-        // info!["Total solutions found: {:?}", sols];
-        info!["Time ordering: {:?}", elapsed_ordering];
+        info!["Total solutions found: {}", CertGraphFile::get_graphs_number(&sols_mmap)];
     }
 }
 

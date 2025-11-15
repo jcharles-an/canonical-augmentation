@@ -184,7 +184,7 @@ def create_line_table(table_name:str, line: int) -> List[asyncio.Future]:
     create_listener(line)
 
     results_workers=[]
-    workers = 1
+    workers = 8
     for i in range(0,workers):
       thread_fraction = i / workers
       log(f"Starting worker {i+1}/{workers}")
@@ -598,7 +598,7 @@ async def process_lines(line_limit:int):
 
   previous_line = "null" # Initial state for the first iteration
 
-  for LINE in range(line_limit):
+  for LINE in range(18,line_limit):
     log(f"--- Processing LINE: {LINE} ---")
     table_name = f"line_{LINE}"
     db_url_table_for_parallel = f"{BASE_DB_URL}/{SCHEMA}.{table_name}"
@@ -648,7 +648,7 @@ if __name__ == "__main__":
 
   #reset_DB()
   set_up_connection(SCHEMA)
-  asyncio.run(process_lines(N))
+  asyncio.run(process_lines(N*2))
 
   log("\nScript finished successfully.")
 
