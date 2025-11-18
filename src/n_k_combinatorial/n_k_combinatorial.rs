@@ -16,7 +16,7 @@ use crate::data_structs::bitmaps::{BMConf, BM, BMC};
 use crate::data_structs::consts::{HMap, N, N_C, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::schreier::automorphism::Automorphism;
-use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use rayon::prelude::*;
 use nauty_pet::prelude::*;
 use petgraph::dot::Config::GraphContentOnly;

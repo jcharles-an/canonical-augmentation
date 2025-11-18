@@ -133,7 +133,7 @@ impl Graph {
         self.ady_matrix[w].set(v,false);
     }
     
-    pub fn has_edge(&mut self, v: usize,w: usize) -> bool {
+    pub fn has_edge(&self, v: usize,w: usize) -> bool {
         self.ady_matrix[v].get(w) && self.ady_matrix[w].get(v)
     }
 

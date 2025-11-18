@@ -4,8 +4,10 @@ use std::str::from_utf8_unchecked;
 use libc::processor_set_load_info_data_t;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
+use crate::schreier::permute_points::PermutePoints;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
 struct SchreierVector<T,U>{
@@ -22,19 +24,25 @@ pub struct Data{
 #[derive(Clone)]
 pub(crate) struct Schreier{
     pub group: PermutationGroup,
+    pub action: PermutePoints,
 }
 
 impl Schreier{
 
     pub fn new(group: PermutationGroup) -> Schreier{
+        let n = group.get_identity_length();
         Schreier{
-            group
+            group,
+            action: PermutePoints::new(n),
         }
     }
     
     pub fn from_generators(generators: Vec<Permutation>) -> Schreier {
+        let group = PermutationGroup::new(generators);
+        let n = group.get_identity_length();
         Schreier{
-            group: PermutationGroup::new(generators)
+            group,
+            action: PermutePoints::new(n),
         }
     }
 
@@ -59,7 +67,7 @@ impl Schreier{
         while orbit_index < orbit_vec.len(){
             for generator in self.group.get_generators(){
                 let previous_orbit_element = orbit_vec[orbit_index];
-                let next_orbit_element = PermutationGroup::apply_to(generator, &previous_orbit_element);
+                let next_orbit_element = PermutePoints::apply_to(generator, &previous_orbit_element);
                 let traversal_representative = traversal[previous_orbit_element].as_ref().unwrap();
 
                 if orbit[next_orbit_element].is_none() {
@@ -127,7 +135,7 @@ impl Schreier{
         while orbit_element_placeholder != schreier_vector.origin{
             let current_sc = schreier_vector.list[orbit_element_placeholder].unwrap();
             r = PermutationGroup::operate(current_sc,&r);
-            orbit_element_placeholder = PermutationGroup::apply_to(
+            orbit_element_placeholder = PermutePoints::apply_to(
                 &PermutationGroup::get_inverse(current_sc),
                 &orbit_element_placeholder);
         }
@@ -140,7 +148,7 @@ impl Schreier{
         let mut local_available_M = free_M;
         let mut m_index = 0;
         while local_available_M&1 == 1 && local_available_M != 0 {
-            let data = schreier.get_orbit(l, schreier.group.get_range());
+            let data = schreier.get_orbit(l, schreier.action.get_range());
             let transporter =  data.transversal[m_index].as_ref();
             if transporter.is_none() {
                 continue;
@@ -158,7 +166,7 @@ impl Schreier{
         let n = L.len();
         let mut g = schreier.group.get_identity();
         for i in 0..n{
-            let data = schreier.get_orbit(PermutationGroup::apply_to(&g,&M[i]), n);
+            let data = schreier.get_orbit(PermutePoints::apply_to(&g,&M[i]), n);
             let g1 = data.transversal[L[i]].as_ref()?;
             g = PermutationGroup::operate(&g,g1);
             schreier = Schreier::from_generators(data.stab_generators)
@@ -370,7 +378,7 @@ fn orbit_test_1() {
 
     schreier.group.simple_generate_group();
     
-    let range = schreier.group.get_range();
+    let range = schreier.action.get_range();
     let S = (0..range).collect::<Vec<usize>>();
     let k = 3;
     let mut k_tuples_in_G = Schreier::get_S_choose_k_in_G(schreier.clone(), range, &S, k);
@@ -386,7 +394,7 @@ fn orbit_test_1() {
         for k_tuple_in_G in &k_tuples_in_G {
             let transporter = Schreier::transporter(schreier.clone(), full_k_tuple, k_tuple_in_G);
             if let Some(trans) = transporter {
-                println!("{:?} = {:?} ^ {:?} = {:?}", k_tuple_in_G, full_k_tuple, trans, PermutationGroup::apply_to_vec(&trans, full_k_tuple,));
+                println!("{:?} = {:?} ^ {:?} = {:?}", k_tuple_in_G, full_k_tuple, trans, PermutePoints::apply_to_vec(&trans, full_k_tuple,));
             }
         }
         println!();
@@ -408,7 +416,7 @@ fn orbit_test_3() {
     
     schreier.group.simple_generate_group();
     
-    let range = schreier.group.get_range();
+    let range = schreier.action.get_range();
     let S = vec![1,4,5,7];
     let k = 3;
     let mut prefixes_holder = Schreier::get_S_choose_k_in_G(schreier.clone(),7, &S,k,);
@@ -424,7 +432,7 @@ fn orbit_test_3() {
         for prefix in &prefixes_holder {
             let transporter = Schreier::transporter(schreier.clone(), full_prefix, prefix);
             if let Some(trans) = transporter {
-                println!("{:?} = {:?} ^ {:?} = {:?}", prefix, full_prefix ,trans, PermutationGroup::apply_to_vec( &trans, full_prefix,));
+                println!("{:?} = {:?} ^ {:?} = {:?}", prefix, full_prefix ,trans, PermutePoints::apply_to_vec( &trans, full_prefix,));
             }
         }
         println!();
@@ -448,7 +456,7 @@ fn orbit_test_2() {
     // [[2, 5, 4]] * [[2, 4], [3, 5]] = [[2, 3, 5]]
     schreier.group.simple_generate_group();
     
-    let range = schreier.group.get_range();
+    let range = schreier.action.get_range();
     let k = 3;
     let origin = 0;
     let data = schreier.get_orbit(origin, range);
@@ -475,7 +483,7 @@ fn orbit_test() {
         PermutationGroup::new(
             vec![Permutation::new(vec![0,2,3,5,4,1])])
     );
-    let n = schreier.group.get_range();
+    let n = schreier.action.get_range();
     let mut data = schreier.get_orbit(3, n);
     assert_eq!(data.orbit, vec![3, 5, 1, 2]);
 
@@ -525,7 +533,7 @@ fn orbit_test() {
                 Permutation::new(vec![0,2,3,1]),
             ]));
 
-    let n = schreier.group.get_range();
+    let n = schreier.action.get_range();
     let data = schreier.get_orbit(0, n);
     assert_eq!(data.orbit, vec![0]);
     

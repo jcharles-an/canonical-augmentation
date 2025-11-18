@@ -3,36 +3,39 @@ use std::fmt::{Debug, Formatter};
 use std::ops::Mul;
 use num_bigint::{ BigUint};
 use rand::rngs::ThreadRng;
-use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 use rand::seq::SliceRandom;
+use crate::schreier::group::Group;
+use crate::schreier::permute_points::PermutePoints;
 
 #[derive(Eq, PartialEq)]
-pub struct RecStabilizerChain<G:Group>{
+pub struct RecStabilizerChain<G:Group ,GA: GroupAction>{
     group: G,
-    orbit: Vec<G::Target>,
-    transversal: HashMap<G::Target, G::Element>,
-    stabilizer: Option<Box<RecStabilizerChain<G>>>,
+    orbit: Vec<GA::Target>,
+    transversal: HashMap<GA::Target, G::Element>,
+    stabilizer: Option<Box<RecStabilizerChain<G, GA>>>,
     full_chain: bool
 }
 
 type G = PermutationGroup;
+type GA = PermutePoints;
 
-impl Debug for RecStabilizerChain<G> {
+impl Debug for RecStabilizerChain<G, GA> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "transversal: {:?}\nstabilizer: {:?}",self.transversal, self.stabilizer)
     }
 }
 
-impl RecStabilizerChain<G>{
+impl RecStabilizerChain<G, GA>{
 
     fn new(group: G,
-           orbit: Vec<<G as Group>::Target>,
-           transversal: HashMap<<G as Group>::Target, <G as Group>::Element>,
-           stabilizer: Option<Box<RecStabilizerChain<G>>>,
+           orbit: Vec<<GA as GroupAction>::Target>,
+           transversal: HashMap<<GA as GroupAction>::Target, <G as Group>::Element>,
+           stabilizer: Option<Box<RecStabilizerChain<G, GA>>>,
            full_chain: bool
-    ) -> RecStabilizerChain<G>{
+    ) -> RecStabilizerChain<G,GA>{
         RecStabilizerChain {
             group,
             orbit,
@@ -42,8 +45,8 @@ impl RecStabilizerChain<G>{
         }
     }
 
-    fn empty()-> RecStabilizerChain<G>{
-        RecStabilizerChain::<G>::new(
+    fn empty()-> RecStabilizerChain<G,GA>{
+        RecStabilizerChain::<G,GA>::new(
             G::new_empty(),
             vec![],
             HashMap::new(),
@@ -52,8 +55,8 @@ impl RecStabilizerChain<G>{
         )
     }
 
-    fn init(group: G)-> RecStabilizerChain<G>{
-        RecStabilizerChain::<G>::new(
+    fn init(group: G)-> RecStabilizerChain<G,GA>{
+        RecStabilizerChain::<G,GA>::new(
             group,
             vec![],
             HashMap::new(),
@@ -62,13 +65,13 @@ impl RecStabilizerChain<G>{
         )
     }
 
-    fn factorize(&self,element: &<G as Group>::Element) -> Option<Vec<&<G as Group>::Element>> {
+    fn factorize(&self, element: &<G as Group>::Element) -> Option<Vec<&<G as Group>::Element>> {
         let mut factorization:Vec<&<G as Group>::Element> = vec![];
         let mut current_stab_chain = self;
         let mut element_placeholder = (*element).clone();
         while !current_stab_chain.group.get_generators().is_empty() {
             let origin = current_stab_chain.orbit.first()?;
-            let transformed = G::apply_to(&element_placeholder, origin);
+            let transformed = GA::apply_to(&element_placeholder, origin);
             let b = current_stab_chain.transversal.get(&transformed)?;
             element_placeholder = G::operate(&G::get_inverse(b),&element_placeholder,);
             factorization.push(b);
@@ -81,11 +84,11 @@ impl RecStabilizerChain<G>{
         Some(factorization)
     }
 
-    pub fn test_belonging(&self,element: &<G as Group>::Element) -> bool {
+    pub fn test_belonging(&self, element: &<G as Group>::Element) -> bool {
         self.factorize(element).is_some()
     }
 
-    pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> RecStabilizerChain<G>{
+    pub(crate) fn get_stabilizer_chain(generators: Vec<<G as Group>::Element>) -> RecStabilizerChain<G,GA>{
         let mut chain = Self::empty();
         let mut rng = rand::thread_rng();
         for generator in generators{
@@ -127,7 +130,7 @@ impl RecStabilizerChain<G>{
     }
 
     fn extend_chain(
-        chain: & mut RecStabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G,GA>,
         g: &<G as Group>::Element,
         rng: &mut ThreadRng
     ){
@@ -161,7 +164,7 @@ impl RecStabilizerChain<G>{
     }
 
     fn calculate_single_generator_chain(
-        chain: & mut RecStabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G,GA>,
         g: &<G as Group>::Element,
         rng: &mut ThreadRng
     ){
@@ -172,13 +175,13 @@ impl RecStabilizerChain<G>{
         //init new layer
         chain.stabilizer = Some(Box::new(Self::empty()));
 
-        let mut next_orbit_element = G::apply_to(g, &orbit_origin);
+        let mut next_orbit_element = GA::apply_to(g, &orbit_origin);
 
         let mut traversal_representative = (*g).clone();
         while orbit_origin != next_orbit_element {
             chain.orbit.push(next_orbit_element);
             chain.transversal.insert(next_orbit_element, traversal_representative.clone());
-            next_orbit_element = G::apply_to(g, &next_orbit_element);
+            next_orbit_element = GA::apply_to(g, &next_orbit_element);
             traversal_representative = G::operate(g, &traversal_representative)
         }
         let stab = chain.stabilizer.as_mut().unwrap().as_mut();
@@ -186,7 +189,7 @@ impl RecStabilizerChain<G>{
     }
 
     fn extend_orbit_or_chain(
-        chain: & mut RecStabilizerChain<G>,
+        chain: & mut RecStabilizerChain<G,GA>,
         g: &<G as Group>::Element,
         orbit_index: usize,
         rng: &mut ThreadRng
@@ -196,7 +199,7 @@ impl RecStabilizerChain<G>{
         let orbit_element = &orbit[orbit_index];
         let current_representative = &traversal[orbit_element];
 
-        let next_orbit_element = G::apply_to(g, orbit_element) ;
+        let next_orbit_element = GA::apply_to(g, orbit_element) ;
         if !orbit.contains(&next_orbit_element){ //TODO: is this contains efficient? Says its O(n)
             orbit.push(next_orbit_element);
             traversal.insert(next_orbit_element, G::operate(g, current_representative));
@@ -208,7 +211,7 @@ impl RecStabilizerChain<G>{
         }
     }
 
-    fn get_orbit_origin(g: &<G as Group>::Element, rng: &mut ThreadRng) -> <G as Group>::Target {
+    fn get_orbit_origin(g: &<G as Group>::Element, rng: &mut ThreadRng) -> <GA as GroupAction>::Target {
         let mut moved = Vec::new();
         for (index, value) in g.map.iter().enumerate(){
             if &index != value{

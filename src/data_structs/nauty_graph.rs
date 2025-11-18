@@ -25,11 +25,12 @@ pub struct NautyGraph {
 }
 
 impl NautyGraph {
-    pub fn from( graph: &Graph ) -> NautyGraph {
+    pub fn from_graph_to_levy(graph: &Graph ) -> NautyGraph {
 
         let n = graph.ady_matrix.len();
         let m = SETWORDSNEEDED(n);
         let mut g = empty_graph(m, n);
+
 
         for (i, bm) in graph.ady_matrix.iter().enumerate() {
             for j in bm {
@@ -39,8 +40,10 @@ impl NautyGraph {
             }
         }
 
+        // labeleing: vector to store the canonical labeling
         let lab = (0..n).map(|x| x as c_int).collect::<Vec<c_int>>();
-        // ptn 0 in half an in the end, to mark color end
+
+        // partition:  0 in half an in the end, to mark color end
         let mut ptn = vec![1 as c_int; n];
         ptn[n/2 - 1] = 0;
         ptn[n - 1] = 0;
@@ -94,7 +97,7 @@ impl NautyGraph {
 
         let mut stats = statsblk::default();
 
-        let nauty_graph = NautyGraph::from(graph);
+        let nauty_graph = NautyGraph::from_graph_to_levy(graph);
         let n = nauty_graph.n;
         let m = nauty_graph.m;
         let mut g = nauty_graph.g;

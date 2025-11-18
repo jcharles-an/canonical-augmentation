@@ -5,7 +5,7 @@ use crate::data_structs::graph::{get_n_cube_ady_matrix, Graph};
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::automorphism::CompareRes::{Better, Same, Worse};
-use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permutation_group::PermutationGroup;
 use crate::schreier::schreier::Schreier;
@@ -19,7 +19,7 @@ use std::io::{self, Write};
 use std::ops::{BitAnd, BitOr, BitXor};
 use std::os::raw::c_int;
 use std::sync::{Arc, RwLock};
-
+use crate::schreier::group::Group;
 
 #[derive(Debug)]
 enum CompareRes {
@@ -394,7 +394,7 @@ impl Automorphism {
                     self.cannon_2(R.clone());
                     self.group.change_base(Permutation::new(self.partition_to_perm(&R)));
                     for g in self.group.get_stab_chain().chain[l].iter(){
-                        C.set(PermutationGroup::apply_to(g,&u),false);
+                        C.set(g.apply(u),false);
                     }
                 }
 

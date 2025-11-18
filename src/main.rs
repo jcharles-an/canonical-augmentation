@@ -13,7 +13,7 @@ use crate::data_structs::graph::Graph;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
 use crate::n_k_combinatorial::n_k_combinatorial::{get_jobs, launch_parallel, NkCombinatorial};
 use crate::n_k_combinatorial::base_configs::*;
-use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 

@@ -2,6 +2,7 @@ use std::cmp;
 use std::collections::HashSet;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::group::Group;
+use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::schreier::Schreier;
 
@@ -18,10 +19,17 @@ pub struct PermutationGroup
 
 impl Group for PermutationGroup{
     type Element = Permutation;
-    type Target = usize;
-
-    fn target_to_usize(target: Self::Target) -> usize {
-        target
+    fn new(generators: Vec<Permutation>) -> PermutationGroup{
+        let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
+        let identity = Permutation::new((0..max_n).collect());
+        PermutationGroup {
+            generators,
+            max_n,
+            identity: identity.clone(),
+            stab_chain: StabChain::new(max_n, identity.clone(),identity.clone()),
+            v_3: vec![],
+            max_depth: 0,
+        }
     }
 
 
@@ -34,7 +42,7 @@ impl Group for PermutationGroup{
             result = element_b.map.clone()
         }
         for (index, value) in element_b.map.iter().enumerate(){
-            result[index] = Self::apply_to(element_a, value);
+            result[index] = element_a.apply(*value);
         }
         Permutation::new(result)
     }
@@ -47,11 +55,6 @@ impl Group for PermutationGroup{
         Permutation::new(result)
     }
 
-    fn apply_to(element: &Permutation, target: &usize) -> usize {
-        element.map.get( *target ).map(|&x| x).unwrap_or(*target)
-    }
-
-   
 
     fn is_identity(element: &Permutation) -> bool {
         element.map.iter().enumerate().all(|(index, &value)| index == value)
@@ -84,52 +87,19 @@ impl Group for PermutationGroup{
         self.stab_chain = stab_chain
     }
 
-    fn get_range(&self) -> usize {
-        self.max_n
-    }
-
     fn add_generator(&mut self, new_generator: Permutation) {
         self.max_n = new_generator.size;
         self.generators.push(new_generator);
         self.identity = Permutation::new((0..self.max_n).collect());
     }
 
-
     fn new_empty() -> PermutationGroup {
         PermutationGroup::new( vec![])
     }
-
-    /*
-    fn generate_group(&self) {//ALGORITHM 6.6 RUN(n, G, USE())
-
-
-    }
-
-    fn generate_by_backtrack(){
-
-    }
-
-    fn process_group_element(&self){
-
-    }
-
-     */
 }
 
 
 impl PermutationGroup {
-    pub fn new(generators: Vec<Permutation>) -> PermutationGroup{
-        let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
-        let identity = Permutation::new((0..max_n).collect());
-        PermutationGroup {
-            generators,
-            max_n,
-            identity: identity.clone(),
-            stab_chain: StabChain::new(max_n, identity.clone(),identity.clone()),
-            v_3: vec![],
-            max_depth: 0,
-        }
-    }
 
     pub fn new_with_stab_chain(generators: Vec<Permutation>, stab_chain: StabChain<Permutation>) -> PermutationGroup{
         let max_n = generators.iter().map(|generator| generator.size).max().unwrap_or(0);
@@ -145,9 +115,7 @@ impl PermutationGroup {
     }
 
 
-    pub fn apply_to_vec(element: &Permutation, targets: &[usize]) -> Vec<usize> {
-        targets.iter().map( |target| PermutationGroup::apply_to(element,target) ).collect()
-    }
+
     
     //BOOK IMPLEMENTATIONS
 
@@ -184,7 +152,7 @@ impl PermutationGroup {
     //process-leaf might be an attribute in the struct
     fn run_backtrack(&mut self, l: usize, g:Permutation, process_leaf: fn(&mut Self, g:Permutation) ){
         let mut stab_chain = self.get_stab_chain();
-        let n = self.get_range();
+        let n = self.get_identity_length();
         if l == n{
             process_leaf(self, g)
         } else {
@@ -204,14 +172,14 @@ impl PermutationGroup {
 
     //algorithm 6.8
     fn test_pertenece(&self, g: &mut Permutation) -> usize{
-        let n = self.get_range();
+        let n = self.get_identity_length();
         let stab_chain = self.get_stab_chain();
         for i in 0..n{
-            let x = Self::apply_to(g, &i);
+            let x = g.apply(i);
             let mut found_h = None;
             // is there any h in subgroups of stab_chain that goes to x?
             for h in &stab_chain.chain[i]{
-                if Self::apply_to(h, &i) == x {
+                if h.apply(i) == x {
                     found_h = Some(h);
                     break;
                 }
@@ -229,7 +197,7 @@ impl PermutationGroup {
 
     // Algorithm 6.9
     fn generate_stab_chain(&mut self) -> StabChain<Permutation> {
-        let n = self.get_range();
+        let n = self.get_identity_length();
         let mut stab_chain = StabChain::new(n,self.get_identity(),self.get_identity());
         self.max_depth = 0;
         for generator in self.generators.clone().into_iter() {
@@ -291,12 +259,12 @@ impl PermutationGroup {
         let n = self.max_n;
         let stab_chain = self.get_stab_chain();
         for i in 0..n{
-            let permuted_i = (Self::apply_to(&stab_chain.base, &i));
-            let x = Self::apply_to(g, &permuted_i);
+            let permuted_i = stab_chain.base.apply(i);
+            let x = g.apply(permuted_i);
             let mut found_h = None;
             // is there any h in subgroups of stab_chain that goes to x?
             for h in &stab_chain.chain[i]{
-                if Self::apply_to(h, &permuted_i) == x {
+                if h.apply(permuted_i) == x {
                     found_h = Some(h);
                     break;
                 }
@@ -372,7 +340,7 @@ impl PermutationGroup {
 
     // Algorithm 6.13.0
     fn norb(&mut self){
-        let n = self.get_range();
+        let n = self.get_identity_length();
         self.v_3 = vec![0; n];
         self.run_backtrack(0,self.get_identity(), Self::norb_use);
 
@@ -409,7 +377,7 @@ impl PermutationGroup {
 
     // Algorithm 6.13.2
     fn norb_use(&mut self, g: Permutation ){
-        let n = self.get_range();
+        let n = self.get_identity_length();
         let mut g = g;
         let T = g.get_type();
         let mut v_2 = vec![0;n];
@@ -451,9 +419,9 @@ fn perm_group_test() {
 
     let mut permutation = Permutation::new(vec![0,2,3,5,4,1]);
     assert_eq!(PermutationGroup::get_inverse(&permutation).map, vec![0,5,1,2,4,3]);
-    assert_eq!(PermutationGroup::apply_to(&permutation, &0),0);
-    assert_eq!(PermutationGroup::apply_to(&permutation,&1),2);
-    assert_eq!(PermutationGroup::apply_to(&permutation,&2), 3);
+    assert_eq!(permutation.apply(0),0);
+    assert_eq!(permutation.apply(1),2);
+    assert_eq!(permutation.apply(2), 3);
 
     permutation = Permutation::new(vec![2,0,4,3,1]);
     let permutation2 = Permutation::new(vec![5,1,3,0,4,2]);

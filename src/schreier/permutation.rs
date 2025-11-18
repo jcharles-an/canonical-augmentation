@@ -90,6 +90,10 @@ impl Permutation{
         }
         self.type_array.as_ref().unwrap()
     }
+    
+    pub fn apply(&self, value: usize) -> usize{
+        self.map.get( value ).map(|&x| x).unwrap_or( value )
+    }
 }
 
 #[test]

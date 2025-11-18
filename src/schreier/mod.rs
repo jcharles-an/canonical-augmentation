@@ -1,7 +1,10 @@
 pub mod permutation;
 pub mod schreier;
 pub mod group;
+pub mod groupAction;
 pub mod permutation_group;
+pub mod permute_points;
+pub mod permute_edges;
 pub(crate) mod stabilizer_chain;
 pub(crate) mod automorphism;
 pub(crate) mod schreier_permutation;

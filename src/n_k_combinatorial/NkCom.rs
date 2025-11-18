@@ -3,6 +3,7 @@ use crate::data_structs::consts::*;
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::schreier::schreier_permutation::{SChooseKInG, Schreier};
+use crate::schreier::schreier::{get_S_choose_k_rec, Schreier as GenericSChreier};
 use memory_stats::memory_stats;
 use nauty_pet::graph::CanonGraph;
 use petgraph::visit::Walker;
@@ -14,9 +15,10 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use base64::Engine;
 use base64::engine::general_purpose;
-use libc::printf;
+use libc::{printf, rusage_info_t, uselocale};
 use crate::data_structs::cert_graph::CertGraph;
 use crate::schreier::permutation::Permutation;
+use crate::schreier::permute_edges::PermuteEdges;
 
 #[derive(Clone, Default)]
 pub struct SolutionProperties {
@@ -427,22 +429,33 @@ impl NkComb {
     }
 
 
-    // gets all the points which still have room for neighbors
+    // gets all the points which still have room for neighbors (points are second half)
     fn get_available_points(&self) -> Vec<usize> {
+        Self::get_available_points_stat(&self.graph, self.n)
+    }
+    // gets all the points which still have room for neighbors
+    fn get_available_points_stat(graph: &Graph, k: usize) -> Vec<usize> {
         let mut available_points = vec![];
-         for (i,neighbors) in self.graph.ady_matrix.iter().enumerate().skip(self.n/2) {
-             if neighbors.len() < self.k {
+        let n = graph.ady_matrix.len();
+         for (i,neighbors) in graph.ady_matrix.iter().enumerate().skip(n/2) {
+             if neighbors.len() < k {
                  available_points.push(i);
              }
          }
         available_points
     }
 
-    // gets all the points which still have room for neighbors
+    // gets all the points which still have room for neighbors (lines are first half)
     fn get_available_lines(&self) -> Vec<usize> {
+        Self::get_available_lines_stat(&self.graph, self.n)
+    }
+
+    // gets all the points which still have room for neighbors
+    fn get_available_lines_stat(graph: &Graph, k: usize) -> Vec<usize> {
         let mut available_points_and_lines = vec![];
-        for (i,neighbors) in self.graph.ady_matrix.iter().enumerate().take(self.n/2) {
-            if neighbors.len() < self.k {
+        let n = graph.ady_matrix.len();
+        for (i,neighbors) in graph.ady_matrix.iter().enumerate().take(n/2) {
+            if neighbors.len() < k {
                 available_points_and_lines.push(i);
             }
         }
@@ -473,6 +486,20 @@ impl NkComb {
         true
     }
 
+    fn is_feasible_stat(graph: &Graph, origin:usize, ends:&[usize]) -> bool {
+        let ends = graph.ady_matrix[origin].clone().into_iter().collect::<Vec<usize>>();
+        for i in (0..ends.len()-1){
+            let mut neighborhood_1 = graph.ady_matrix[ends[i]] ;
+            neighborhood_1.set(origin,false);
+            for j in i+1..ends.len(){
+                if !neighborhood_1.bitand(graph.ady_matrix[ends[j]]).is_empty() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     fn get_possible_children(&mut self) -> Vec<Graph>{
         let available_points = self.get_available_points();
         let available_lines = self.get_available_lines();
@@ -492,6 +519,45 @@ impl NkComb {
         }
         possible_children
     }
+
+    fn get_possible_edges(graph: &mut Graph, k: usize ) -> Vec<(usize, usize)>{
+        let available_points = Self::get_available_points_stat(graph,k);
+        let available_lines = Self::get_available_lines_stat(graph,k);
+        let mut possible_edges = vec![];
+        for point in &available_points {
+            for line in &available_lines {
+                if graph.has_edge(*point,*line){
+                    continue;
+                }
+                graph.add_edge(*point, *line);
+                if Self::is_feasible_stat(&graph, *point, [*line].as_slice()){
+                    possible_edges.push(( *line, *point ));
+                }
+                graph.remove_edge(*point, *line);
+            }
+        }
+        possible_edges
+    }
+
+    fn get_subgraphs(graph: &Graph) -> Vec<Graph> {
+        let n  = graph.ady_matrix.len();
+        let mut subobjects = Vec::with_capacity(n);
+        for i in 0..n - 1 {
+            for j in i + 1 ..n {
+                if graph.has_edge(i, j){
+                    let mut subobject = graph.clone();
+                    subobject.remove_edge(i, j);
+                    subobjects.push(subobject);
+                }
+            }
+        }
+        subobjects
+    }
+
+    fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> bool {
+        true
+    }
+
 
 
     fn process_leaf(&mut self, current_line: usize){
@@ -617,6 +683,57 @@ impl NkComb {
 
     }
 
+
+    pub fn canaug_corrected(k: usize, graph: &mut Graph, level: usize) {
+
+        if level > 3 {
+            return;
+        }
+
+        let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+
+        let permuteEdges = PermuteEdges::from_vertices_range(graph.ady_matrix.len());
+        let schreier = GenericSChreier::from_generators(gen, permuteEdges);
+
+        let possible_edges = Self::get_possible_edges(graph, k);
+        let mut orbits = vec![vec![None; N];N];
+        let mut non_iso_edges = Vec::new();
+
+        for edge in possible_edges {
+            if orbits[edge.0][edge.1].is_some() {
+                continue;
+            }
+
+            //calculate orbit for current edge
+            let data = schreier.get_orbit(edge);
+
+
+            for element in data.orbit{
+                orbits[element.0][element.1] = Some(data.orbit_representative);
+            }
+            non_iso_edges.push(edge);
+        }
+        print_nested_optional_vec(&orbits);
+        println!("non_iso_edges for level {level}: {:?}", non_iso_edges);
+
+
+        // Now we search in non iso (X)
+        for edge in non_iso_edges {
+            // println!("{level} : {}", child.custom_print());
+            graph.add_edge(edge.0, edge.1);
+            let subgraphs = Self::get_subgraphs(graph);
+            graph.remove_edge(edge.0, edge.1);
+
+            if !Self::is_isomorph_to_canonical(graph, subgraphs.as_slice()) {
+                continue;
+            }
+
+            graph.add_edge(edge.0, edge.1);
+            Self::canaug_corrected(k, graph, level + 1);
+            graph.remove_edge(edge.0, edge.1);
+        }
+    }
+
 }
 
 
@@ -694,8 +811,63 @@ fn test_get_children(){
 #[test]
 fn test_canaug(){
     let ady_mat = vec![BM::new();N];
-    let g = Graph {
+    let mut g = Graph {
         ady_matrix: ady_mat,
     };
-    NkComb::canaug(3,g,0)
+    NkComb::canaug_corrected(3,&mut g,0)
+}
+
+
+fn print_nested_optional_vec(data: &Vec<Vec<Option<(usize, usize)>>>) {
+    println!("--- Nested Optional Vector Contents (Aligned) ---");
+
+    // Define a fixed width for each data cell (10 characters)
+    const CELL_WIDTH: usize = 10;
+
+    // 1. Determine maximum number of columns to align the header
+    let max_cols = data.iter().map(|row| row.len()).max().unwrap_or(0);
+
+    // --- Print Header Row ---
+
+    // Print the label column header (e.g., "Index:")
+    print!("{:<10}", "Index:");
+
+    // Print the column indices (0, 1, 2, ...) centered within the fixed width
+    for j in 0..max_cols {
+        print!("{:^width$}", j, width = CELL_WIDTH);
+    }
+    println!();
+
+    // Print a separator line based on the total width
+    println!("{}", "-".repeat(10 + max_cols * CELL_WIDTH));
+
+    // --- Print Data Rows ---
+    for (i, row) in data.iter().enumerate() {
+        // Print the row index label
+        print!("{:<10}", format!("Row {}:", i));
+
+        // Print row elements with fixed width
+        for item in row.iter() {
+            let cell_content = match item {
+                // If the option is Some((r, c)), format the tuple
+                Some((r, c)) => format!("({},{})", r, c),
+                // If the option is None, use a placeholder
+                None => " -- ".to_string(),
+            };
+
+            // Print the content centered within the fixed width
+            print!("{:^width$}", cell_content, width = CELL_WIDTH);
+        }
+
+        // Pad the line if this row is shorter than max_cols
+        if row.len() < max_cols {
+            for _ in 0..(max_cols - row.len()) {
+                print!("{:^width$}", " ", width = CELL_WIDTH);
+            }
+        }
+
+        println!();
+    }
+
+    println!("----------------------------------------------");
 }
