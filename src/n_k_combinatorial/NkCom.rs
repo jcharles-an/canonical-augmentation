@@ -1,5 +1,5 @@
 use crate::data_structs::bitmaps::BM;
-use crate::data_structs::consts::*;
+use crate::data_structs::{self, consts::*};
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::schreier::schreier_permutation::{SChooseKInG, Schreier};
@@ -7,6 +7,7 @@ use crate::schreier::schreier::{get_S_choose_k_rec, Schreier as GenericSChreier}
 use memory_stats::memory_stats;
 use nauty_pet::graph::CanonGraph;
 use petgraph::visit::Walker;
+use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Write;
@@ -17,8 +18,11 @@ use base64::Engine;
 use base64::engine::general_purpose;
 use libc::{printf, rusage_info_t, uselocale};
 use crate::data_structs::cert_graph::CertGraph;
+use crate::data_structs::invariant_chain::InvariantChain;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permute_edges::PermuteEdges;
+
+
 
 #[derive(Clone, Default)]
 pub struct SolutionProperties {
@@ -555,7 +559,23 @@ impl NkComb {
     }
 
     fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> bool {
-        true
+        let chain = InvariantChain::new();
+        let canonical_index = chain.get_canonical_invariant_chain(subgraphs);
+
+        let mut graph_index= None;
+        for (index, subgraph) in subgraphs.iter().enumerate() {
+            if subgraph == graph {
+                graph_index = Some(index);
+                break
+            }
+        }
+        let result = canonical_index.contains(&graph_index.unwrap());
+        if result{
+            println!("Found that p(X) is isomorph to m(X) with index {}",graph_index.unwrap())
+        } else {
+            print!("p(X) is not isomorph to m(X)\n NOT FOUND\n\n",);
+        }
+        result
     }
 
 
@@ -690,6 +710,11 @@ impl NkComb {
             return;
         }
 
+        println!();
+        println!("canaug starting for level {level}");
+        println!("graph: ");
+        Graph::print_ady_mat(&graph.ady_matrix);
+
         let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
 
         let permuteEdges = PermuteEdges::from_vertices_range(graph.ady_matrix.len());
@@ -727,6 +752,7 @@ impl NkComb {
             if !Self::is_isomorph_to_canonical(graph, subgraphs.as_slice()) {
                 continue;
             }
+
 
             graph.add_edge(edge.0, edge.1);
             Self::canaug_corrected(k, graph, level + 1);
@@ -828,8 +854,6 @@ fn print_nested_optional_vec(data: &Vec<Vec<Option<(usize, usize)>>>) {
     let max_cols = data.iter().map(|row| row.len()).max().unwrap_or(0);
 
     // --- Print Header Row ---
-
-    // Print the label column header (e.g., "Index:")
     print!("{:<10}", "Index:");
 
     // Print the column indices (0, 1, 2, ...) centered within the fixed width

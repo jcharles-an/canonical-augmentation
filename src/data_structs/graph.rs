@@ -106,7 +106,7 @@ impl Graph {
 
     pub fn print_ady_mat(ady_mat: &[BM]){
         for num in ady_mat{
-            let normal = format!("{:08b}", num.into_value());
+            let normal = format!("{:014b}", num.into_value());
             // Reverse the bits in the string
             let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
             println!("{}", reversed);
