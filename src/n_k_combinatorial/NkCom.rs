@@ -17,8 +17,10 @@ use std::time::Instant;
 use base64::Engine;
 use base64::engine::general_purpose;
 use libc::{printf, rusage_info_t, uselocale};
+use log::debug;
 use crate::data_structs::cert_graph::CertGraph;
 use crate::data_structs::invariant_chain::InvariantChain;
+use crate::n_k_combinatorial::NkCom;
 use crate::schreier::permutation::Permutation;
 use crate::schreier::permute_edges::PermuteEdges;
 
@@ -569,11 +571,12 @@ impl NkComb {
                 break
             }
         }
+        debug!("Canonical idexes: {:?}", canonical_index);
         let result = canonical_index.contains(&graph_index.unwrap());
         if result{
-            println!("Found that p(X) is isomorph to m(X) with index {}",graph_index.unwrap())
+            debug!("Found that p(X) is isomorph to m(X) with index {}",graph_index.unwrap())
         } else {
-            print!("p(X) is not isomorph to m(X)\n NOT FOUND\n\n",);
+            debug!("p(X) is not isomorph to m(X) index {} NOT FOUND",graph_index.unwrap());
         }
         result
     }
@@ -704,18 +707,25 @@ impl NkComb {
     }
 
 
-    pub fn canaug_corrected(k: usize, graph: &mut Graph, level: usize) {
+    pub fn canaug_corrected(k: usize, graph: &mut Graph, level: usize, path: &mut Vec<(usize, Graph)>) {
 
-        if level > 3 {
+        let S = NkComb::get_available_points_stat(&graph, k);
+        if S.is_empty(){
+            debug!("{level}:");
+            for step in path {
+                debug!("\t{}\t{}", step.0, step.1);
+            }
             return;
         }
 
-        println!();
-        println!("canaug starting for level {level}");
-        println!("graph: ");
-        Graph::print_ady_mat(&graph.ady_matrix);
+        debug!("");
+        debug!("canaug starting for level {level}");
+        debug!("graph: ");
+        //Graph::print_ady_mat(&graph.ady_matrix);
 
-        let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+         let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+        debug!("current cert: {}", certificate);
+
 
         let permuteEdges = PermuteEdges::from_vertices_range(graph.ady_matrix.len());
         let schreier = GenericSChreier::from_generators(gen, permuteEdges);
@@ -738,14 +748,23 @@ impl NkComb {
             }
             non_iso_edges.push(edge);
         }
-        print_nested_optional_vec(&orbits);
-        println!("non_iso_edges for level {level}: {:?}", non_iso_edges);
+        //print_nested_optional_vec(&orbits);
+        debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
+
+        debug!("$$ Certificates for level {level}:");
+        for (edge_index, edge) in non_iso_edges.iter().enumerate() {
+            graph.add_edge(edge.0, edge.1);
+            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+            graph.remove_edge(edge.0, edge.1);
+            debug!("edge{edge:?} -> certificate:{certificate}");
+            }
 
 
         // Now we search in non iso (X)
-        for edge in non_iso_edges {
-            // println!("{level} : {}", child.custom_print());
+        for (edge_index, edge) in non_iso_edges.iter().enumerate() {
+            debug!("$$ Extending for level {level} -> edge {edge:?}");
             graph.add_edge(edge.0, edge.1);
+            debug!("Obtaining possible subgraphs...");
             let subgraphs = Self::get_subgraphs(graph);
             graph.remove_edge(edge.0, edge.1);
 
@@ -755,7 +774,11 @@ impl NkComb {
 
 
             graph.add_edge(edge.0, edge.1);
-            Self::canaug_corrected(k, graph, level + 1);
+            let adyMat = graph.ady_matrix.clone();
+            path[level] = (edge_index, Graph{
+                ady_matrix: adyMat,
+            });
+            Self::canaug_corrected(k, graph, level + 1, path);
             graph.remove_edge(edge.0, edge.1);
         }
     }
@@ -840,7 +863,30 @@ fn test_canaug(){
     let mut g = Graph {
         ady_matrix: ady_mat,
     };
-    NkComb::canaug_corrected(3,&mut g,0)
+    let k = 3;
+
+    let mut path = vec![(0,g.clone());N_CONF*k];
+    NkComb::canaug_corrected(k,&mut g,0, &mut path)
+}
+
+#[test]
+fn test_graph(){
+
+    std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
+
+    let graph = &mut Graph::from_string("1300:500:2600:900:1c00:b000:6800:c200:b:85:16:58:31:64:c0:a0");
+    let mut path = vec![(0,graph.clone());2];
+
+    NkComb::canaug_corrected(3, graph, 0,&mut path);
+}
+
+#[test]
+fn test_gen(){
+    let graph = &mut Graph::from_string("1300:500:2600:900:1c00:b000:6800:c200:b:85:16:58:31:64:c0:a0");
+    println!("{}", graph.custom_print());
+    let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+    println!("{:?}", certificate);
 }
 
 

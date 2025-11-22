@@ -1,0 +1,32 @@
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] $$ Extending for level 0 -> edge (1, 14)
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Obtaining possible subgraphs...
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [0]: connected_components
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 23 -> [USize(1)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [1]: degeneracy
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 19 -> [USize(1), USize(2)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 4 -> [USize(1), USize(3)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [2]: degree_sequence
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 4 -> [USize(1), USize(3), VecUSize([1, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 19 -> [USize(1), USize(2), VecUSize([2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] Went to certificates fallback: 
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] 	U128(15435541277382822134) -> [0]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] 	U128(3313969003794320220) -> [1, 5, 13, 18]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Canonical idexes: [1, 5, 13, 18]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Found that p(X) is isomorph to m(X) with index 5
+
+
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] $$ Extending for level 0 -> edge (3, 15)
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Obtaining possible subgraphs...
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [0]: connected_components
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 23 -> [USize(1)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [1]: degeneracy
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 19 -> [USize(1), USize(2)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 4 -> [USize(1), USize(3)]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] invariant Count [2]: degree_sequence
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 4 -> [USize(1), USize(3), VecUSize([1, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain]   count: 19 -> [USize(1), USize(2), VecUSize([2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] Went to certificates fallback: 
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] 	U128(17114306204299486803) -> [0]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::data_structs::invariant_chain] 	U128(3313969003794320220) -> [1, 7, 10, 12]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Canonical idexes: [1, 7, 10, 12]
+[2025-11-22T18:45:26Z DEBUG shcreier_sims_app::n_k_combinatorial::NkCom] Found that p(X) is isomorph to m(X) with index 10

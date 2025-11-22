@@ -9,7 +9,7 @@ include!(concat!(env!("OUT_DIR"), "/consts.rs"));
 pub const DEGREE: usize = 4;
 //pub const N: usize =  1 << DEGREE;
 
-pub const N_CONF: usize = 7;
+pub const N_CONF: usize = 8;
 pub const N: usize =  N_CONF * 2;
 pub const N_CERT: usize = N * (N - 1) / 2;
 

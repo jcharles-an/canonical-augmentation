@@ -106,7 +106,7 @@ impl Graph {
 
     pub fn print_ady_mat(ady_mat: &[BM]){
         for num in ady_mat{
-            let normal = format!("{:014b}", num.into_value());
+            let normal = format!("{:016b}", num.into_value());
             // Reverse the bits in the string
             let reversed: String = normal.chars().rev().map(|c| "  ".to_string() + &c.to_string()).collect();
             println!("{}", reversed);
@@ -180,10 +180,15 @@ impl Graph {
 
             // Normalize the edge pair: always (smaller_index, larger_index) for undirected graphs.
             // This is important for consistent sorting and to avoid duplicate entries for the same edge.
+            let mut undirected_edge;
             if u_idx < v_idx {
-                edge_list.push((u_idx, v_idx));
+                undirected_edge = (u_idx, v_idx);
             } else {
-                edge_list.push((v_idx, u_idx));
+                undirected_edge = (v_idx, u_idx);
+            }
+
+            if !edge_list.contains(&undirected_edge) {
+                edge_list.push(undirected_edge);
             }
         }
 

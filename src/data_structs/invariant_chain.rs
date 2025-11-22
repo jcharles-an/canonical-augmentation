@@ -1,6 +1,7 @@
 use std::cmp;
 use std::collections::HashMap;
 use std::io::Chain;
+use log::debug;
 use crate::data_structs;
 use crate::data_structs::bitmaps::BM;
 use crate::data_structs::consts::N;
@@ -101,30 +102,33 @@ impl InvariantChain {
     pub fn get_canonical_invariant_chain(&self, subgraphs: &[Graph]) -> Vec<usize> {
         let mut invariants = vec![vec![]; subgraphs.len()];
         for (chain_index, (func_name, link)) in self.links.iter().enumerate() {
-            let mut invariant_count = HashMap::new();
 
             for (graph_index, graph) in subgraphs.iter().enumerate() {
                 let invariant = link(graph);
                 invariants[graph_index].push(invariant.clone());
-                let count = invariant_count.get(&invariant).unwrap_or(&(0,0)).0 + 1;
-                invariant_count.insert(invariant, (count, graph_index));
+            }
+
+            let mut invariant_count = HashMap::new();
+            for (graph_index, invariant_vec) in invariants.iter().enumerate() {
+                let count = invariant_count.get(invariant_vec).unwrap_or(&(0,0)).0 + 1;
+                invariant_count.insert(invariant_vec, (count, graph_index));
             }
 
             let mut canonical_candidates = Vec::new();
-            for (invariant, (count, graph_index)) in invariant_count {
-                if count == 1 {
+            for (invariant, (count, graph_index)) in &invariant_count {
+                if *count == 1 {
                     canonical_candidates.push((invariant, graph_index));
                 }
             }
 
-            println!("Chain link [{}]: {}", chain_index, func_name);
-            for (graph_idx, invariant) in invariants.iter().enumerate() {
-                println!("  Graph {} -> {:?}", graph_idx, invariant);
+            debug!("invariant Count [{}]: {}", chain_index, func_name);
+            for (graph_idx, invariant) in invariant_count.iter().enumerate() {
+                debug!("  count: {} -> {:?}", invariant.1.0, invariant.0, );
             }
 
             if !canonical_candidates.is_empty() {
                 canonical_candidates.sort();
-                return vec![canonical_candidates.first().unwrap().clone().1]
+                return vec![*canonical_candidates.first().unwrap().clone().1]
             }
         }
         // run logic to get from multiple chains
@@ -133,20 +137,22 @@ impl InvariantChain {
         for (graph_index, graph) in subgraphs.iter().enumerate() {
             let invariant = Self::get_certificate(graph);
 
-            if invariant > least_cert {
-                continue;
+            if invariant < least_cert {
+                least_cert = invariant.clone();
             }
-            least_cert = invariant;
 
-            let certificate_indexes = certificates.get_mut(&least_cert);
+            let certificate_indexes = certificates.get_mut(&invariant);
             if certificate_indexes.is_some() {
                 certificate_indexes.unwrap().push(graph_index);
             } else{
-                certificates.insert(least_cert.clone(), vec![graph_index]);
+                certificates.insert(invariant.clone(), vec![graph_index]);
             }
         }
 
-        println!("Went to certificates fallback: \n {:?}", certificates);
+        debug!("Went to certificates fallback: ");
+        for (cert, vec) in &certificates {
+            debug!("\t{:?} -> {:?}", cert, vec);
+        }
 
         certificates.get(&least_cert).unwrap().clone()
 
