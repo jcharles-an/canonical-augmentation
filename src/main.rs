@@ -11,7 +11,6 @@ use rayon::prelude::*;
 use crate::data_structs::consts::{N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
-use crate::n_k_combinatorial::n_k_combinatorial::{get_jobs, launch_parallel, NkCombinatorial};
 use crate::n_k_combinatorial::base_configs::*;
 use crate::schreier::groupAction::GroupAction;
 use crate::schreier::permutation::Permutation;
@@ -20,7 +19,12 @@ use crate::schreier::stabilizer_chain::RecStabilizerChain;
 use nauty_Traces_sys::*;
 use std::ffi::{c_char, CString};
 use std::ptr;
+use crate::data_structs::bitmaps::BM;
 use crate::n_k_combinatorial::{NkCom, NkCombManager};
+use crate::n_k_combinatorial::canaugFullPoint::CanaugFullPoint;
+use crate::n_k_combinatorial::canaugManager::CanaugManager;
+use crate::n_k_combinatorial::canonicalAugmenterTrait::{CanonicalAugmenter, Memory};
+use crate::n_k_combinatorial::n_k_combinatorial::{launch_parallel, NkCombinatorial};
 use crate::n_k_combinatorial::NkCombManager::{manager, parallel_manager};
 
 mod schreier;
@@ -57,47 +61,18 @@ fn main_correct_pizana() {
 fn main() {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
+
+    info!("Starting schreier");
     let args: Vec<String> = env::args().collect();
 
-    let mut k = 4;
-    let mut save_gen = false;
-    if args.len() > 1 {
-        k = args[1].parse::<usize>().unwrap();
-        save_gen = args[2].parse::<bool>().unwrap()
-    }
-
-    // manager(N,4,10);
-
-    parallel_manager(N,k,10, save_gen);
-    return;
-    let args: Vec<String> = env::args().collect();
     let mut k = 3;
-    let mut line = 0;
-    let mut graphs = "";
     if args.len() > 1 {
         k = args[1].parse::<usize>().unwrap();
-        line = args[2].parse::<usize>().unwrap();
-    }
-    if args.len() > 3 {
-        graphs = &args[3];
-    }
-    let mut hm: HashMap<u128,Graph>;
-    let mut certs: HashMap<u128, Graph> = HashMap::new();
-    if graphs.eq(""){
-        hm = NkCombManager::get_level(k, line);
-    } else {
-        for graph in graphs[1..graphs.len() -1 ].split(","){
-            hm = NkCombManager::get_level_from_graph(k, line, Graph::from_string(graph));
-            for (cert, graph) in hm{
-                certs.insert(cert, graph);
-            }
-        }
-    }
-    for (cert, graph) in certs{
-        println!("{} {}", cert, graph)
+        info!("Found k {k}");
     }
 
-
+    CanaugManager::bfs(k);
+    return;
 
 }
 

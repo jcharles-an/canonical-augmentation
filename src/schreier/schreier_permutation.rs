@@ -193,7 +193,7 @@ impl Schreier{
         for s in S {
             full_set |= 1usize << s
         }
-        Schreier::get_S_choose_k_in_G_rec(schreier, n, full_set,  k,(n-1) as isize, &mut vec_holder, &mut k_tuples);
+        Schreier::get_S_choose_k_in_G_rec(schreier, n, full_set,  k,0, &mut vec_holder, &mut k_tuples);
         k_tuples
     }
 
@@ -207,7 +207,7 @@ impl Schreier{
     /// * `prefix` - current partial solution prefix holder
     /// * `k` - int, number of elements to choose
     /// * `k_tuples` - Vec holding all possible k-tuples in S, non-isomorph in G
-    pub fn get_S_choose_k_in_G_rec(mut schreier: Schreier, n:usize, S: usize, k: usize, mut current_index: isize, mut current_prefix: &mut Vec<usize>,  k_tuples: &mut Vec<Vec<usize>> ){
+    pub fn get_S_choose_k_in_G_rec(mut schreier: Schreier, n:usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>,  k_tuples: &mut Vec<Vec<usize>> ){
         if k == 0 {
             k_tuples.push(current_prefix.clone());
             return;
@@ -215,7 +215,7 @@ impl Schreier{
         
         let mut local_available_S = S;
 
-        for i in (0..current_index + 1).rev() {
+        for i in current_index..n {
             // if element i is not on local_available_S, continue
             if (local_available_S >> i)&1 == 0  {
                 continue;
@@ -234,7 +234,7 @@ impl Schreier{
             local_available_S &= mask; // local_available_S intersection S not in orbit
 
 
-            Self::get_S_choose_k_in_G_rec(Schreier::from_generators(data.stab_generators), n, S, k - 1,i - 1, current_prefix,  k_tuples);
+            Self::get_S_choose_k_in_G_rec(Schreier::from_generators(data.stab_generators), n, S, k - 1,i + 1, current_prefix,  k_tuples);
             current_prefix.pop();
         }
     }
@@ -276,7 +276,7 @@ pub struct SChooseKInG {
     current_prefix: Vec<usize>,
     available_S_per_level: Vec<usize>,
     schreier_per_level: Vec<Option<Schreier>>,
-    index_per_level: Vec<isize>,
+    index_per_level: Vec<usize>,
 }
 
 impl SChooseKInG {
@@ -295,7 +295,7 @@ impl SChooseKInG {
             current_prefix: Vec::with_capacity(k),
             available_S_per_level: vec![S_bitmap; k],
             schreier_per_level: schreier_per_index,
-            index_per_level: ((n-k) as isize..n as isize).rev().collect(),
+            index_per_level: (0..k).collect(),
         }
     }
 }
@@ -305,20 +305,20 @@ impl Iterator for SChooseKInG {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             //this while traverses the level
-            while self.index_per_level[self.current_prefix.len()] > -1 {
+            while self.index_per_level[self.current_prefix.len()] < self.n {
                 let level = self.current_prefix.len();
                 let index = self.index_per_level[level];
 
                 // if element i is not on
                 if (self.available_S_per_level[level] >> index) & 1 == 0 {
                     // advance level iteration index
-                    self.index_per_level[level] -= 1;
+                    self.index_per_level[level] += 1;
                     continue;
                 }
 
                 // get an orbit representative for ith element in G
                 let mut data = self.schreier_per_level[level].as_ref().unwrap()
-                    .get_orbit(index as usize, self.n);
+                    .get_orbit(index, self.n);
 
 
                 // make the elements inside the orbit unavailable
@@ -329,7 +329,7 @@ impl Iterator for SChooseKInG {
                 self.available_S_per_level[level] &= mask; // local_available_S intersection S not in orbit
 
                 //Add the orbit representative to current_prefix (it is always current index)
-                self.current_prefix.push(index as usize); // current prefix len has changed here
+                self.current_prefix.push(index); // current prefix len has changed here
 
                 if level + 1 == self.k {
                     let k_tuple = self.current_prefix.clone();
@@ -338,14 +338,14 @@ impl Iterator for SChooseKInG {
                 }
 
                 self.schreier_per_level[level + 1] = Some(Schreier::from_generators(data.stab_generators));
-                self.index_per_level[level + 1] = self.current_prefix[level] as isize - 1;
+                self.index_per_level[level + 1] = self.current_prefix[level] + 1;
                 self.available_S_per_level[level + 1] = self.S;
             }
 
             self.current_prefix.pop();
 
             // if tried all possibilities in first level
-            if self.index_per_level[0] == -1 && self.current_prefix.is_empty() {
+            if self.index_per_level[0] == self.n && self.current_prefix.is_empty() {
                 return None;
             }
         }

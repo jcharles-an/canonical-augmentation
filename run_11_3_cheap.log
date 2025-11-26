@@ -1,0 +1,53 @@
+   Compiling shcreier-sims-app v0.1.0 (/Users/josecarlosaleman/Documents/pcic/nk-comb)
+    Finished `release` profile [optimized] target(s) in 3.23s
+     Running `target/release/shcreier-sims-app 3`
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app] Starting schreier
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app] Found k 3
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 0
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 1
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 686.708µs
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 1
+[2025-11-25T17:50:59Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 1
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 548.958µs
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 2
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 2
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 828.5µs
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 3
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 5
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 1.529458ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 4
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 14
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 3.3675ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 5
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 40
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 10.365583ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 6
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 135
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 23.947417ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 7
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 438
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 60.779417ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 8
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 1087
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] threads done:1000, 92.00%
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 133.92525ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 9
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 1478
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] threads done:1000, 67.66%
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 107.550375ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] level 10
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] tasks to process 608
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 27.02275ms
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] 
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] All Solutions:34
+[2025-11-25T17:51:00Z INFO  shcreier_sims_app::n_k_combinatorial::canaugManager] elapsed: 370.766083ms

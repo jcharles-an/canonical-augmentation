@@ -133,6 +133,19 @@ impl Graph {
         self.ady_matrix[w].set(v,false);
     }
     
+    pub fn add_edges(&mut self, edges: &[(usize, usize)]){
+        for &(v, w) in edges{
+            self.add_edge(v, w);
+        }
+    }
+    
+    pub fn remove_edges(&mut self, edges: &[(usize, usize)]){
+        for &(v, w) in edges{
+            self.remove_edge(v, w);
+        }
+    }
+    
+    
     pub fn has_edge(&self, v: usize,w: usize) -> bool {
         self.ady_matrix[v].get(w) && self.ady_matrix[w].get(v)
     }
@@ -181,7 +194,7 @@ impl Graph {
             // Normalize the edge pair: always (smaller_index, larger_index) for undirected graphs.
             // This is important for consistent sorting and to avoid duplicate entries for the same edge.
             let mut undirected_edge;
-            if u_idx < v_idx {
+            if u_idx > v_idx {
                 undirected_edge = (u_idx, v_idx);
             } else {
                 undirected_edge = (v_idx, u_idx);

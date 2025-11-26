@@ -99,7 +99,7 @@ impl InvariantChain {
         U128(certificate)
     }
 
-    pub fn get_canonical_invariant_chain(&self, subgraphs: &[Graph]) -> Vec<usize> {
+    pub fn get_canonical_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
         let mut invariants = vec![vec![]; subgraphs.len()];
         for (chain_index, (func_name, link)) in self.links.iter().enumerate() {
 
@@ -128,7 +128,7 @@ impl InvariantChain {
 
             if !canonical_candidates.is_empty() {
                 canonical_candidates.sort();
-                return vec![*canonical_candidates.first().unwrap().clone().1]
+                return (false, vec![*canonical_candidates.first().unwrap().clone().1])
             }
         }
         // run logic to get from multiple chains
@@ -154,7 +154,7 @@ impl InvariantChain {
             debug!("\t{:?} -> {:?}", cert, vec);
         }
 
-        certificates.get(&least_cert).unwrap().clone()
+        (true, certificates.get(&least_cert).unwrap().clone())
 
     }
 

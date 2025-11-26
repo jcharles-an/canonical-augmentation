@@ -43,10 +43,14 @@ impl NautyGraph {
         // labeleing: vector to store the canonical labeling
         let lab = (0..n).map(|x| x as c_int).collect::<Vec<c_int>>();
 
-        // partition:  0 in half an in the end, to mark color end
+        // partition: bipartite partition for Levy graph structure
+        // First half: points (0 to n/2-1)
+        // Second half: lines (n/2 to n-1)
+        // ptn[i] = 1 means vertices i and i+1 are in the same cell
+        // ptn[i] = 0 means vertex i ends a cell
         let mut ptn = vec![1 as c_int; n];
-        ptn[n/2 - 1] = 0;
-        ptn[n - 1] = 0;
+        ptn[n/2 - 1] = 0;  // End first partition cell (points)
+        ptn[n - 1] = 0;    // End second partition cell (lines)
 
         // [[[1, 3]], [[2, 4], [5, 6]], [[0, 2], [6, 7]]]
         // [[[1, 3]], [[2, 4], [5, 6]], [[0, 2], [6, 7]]]
