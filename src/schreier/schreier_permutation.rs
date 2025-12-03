@@ -1,7 +1,11 @@
 use std::cmp;
 use std::collections::HashSet;
+use std::path::Prefix;
 use std::str::from_utf8_unchecked;
+use bitmaps::Bitmap;
 use libc::processor_set_load_info_data_t;
+use petgraph::visit::Walker;
+use crate::data_structs::bitmaps::BM64;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::group::Group;
 use crate::schreier::groupAction::GroupAction;
@@ -240,6 +244,66 @@ impl Schreier{
     }
 
 
+
+    pub fn get_S_choose_k_in_G_2(mut schreier: Schreier,n:usize, S: &[usize], k: usize) -> Vec<Vec<usize>> {
+        let mut s_set = BM64::new();
+        for s in S{
+            s_set.set(*s,true);
+        }
+
+        let mut orbits = vec![];
+        for s in S{
+            if !s_set.get(*s) {
+                continue;
+            }
+            let data = schreier.get_orbit(*s,n);
+            let mut orbit_set = BM64::new();
+            println!("{:?}", data.orbit);
+            for orb in data.orbit{
+                orbit_set.set(orb,true);
+                s_set.set(orb,false);
+            }
+            orbits.push(orbit_set);
+        }
+
+        let mut k_tuples = vec![];
+        Schreier::get_S_choose_k_in_G_rec_2(orbits, BM64::new(), k, &mut k_tuples);
+        k_tuples.iter().map(|k_tuple| k_tuple.into_iter().collect() ).collect()
+    }
+
+    pub fn get_S_choose_k_in_G_rec_2(mut orbits: Vec<BM64>, mut prefix: BM64, k: usize, k_tuples: &mut Vec<BM64>){
+
+        if prefix.len() == k {
+            k_tuples.push(prefix);
+            //println!("found tuple {prefix:?}");
+            return;
+        }
+
+        let first_orbit = orbits.get(0);
+        if first_orbit.is_none() {
+            //println!("No more orbits, return");
+            return;
+        }
+
+        //discard orbit
+        Self::get_S_choose_k_in_G_rec_2(orbits[1..orbits.len()].to_owned(), prefix, k, k_tuples);
+
+        let current_orbit = orbits.get_mut(0).unwrap();
+        let element = current_orbit.first_index();
+        if element.is_none() {
+            return;
+        }
+        let element = element.unwrap();
+
+        current_orbit.set(element, false);
+        prefix.set(element, true);
+
+        // Keep orbit
+        Self::get_S_choose_k_in_G_rec_2(orbits.clone(), prefix, k, k_tuples);
+
+    }
+
+
     pub fn get_S_choose_k(n:usize, S: &[usize], k: usize) -> Vec<Vec<usize>> {
         let mut vec_holder = vec![];
         let mut prefixes_holder = vec![];
@@ -355,18 +419,8 @@ impl Iterator for SChooseKInG {
 
 #[test]
 fn orbit_test_1() {
-    let mut schreier = Schreier::new(
-        PermutationGroup::new(
-            vec![Permutation::new(vec![0,1,2,3,4,5])])
-    );
 
-    let mut schreier = Schreier::new(
-        PermutationGroup::new(
-            vec![
-                Permutation::from_cycles(vec![vec![1,2]]),
-                Permutation::from_cycles(vec![vec![0,1,2,3,4,5,6]]),
-            ])
-    );
+
     let mut schreier = Schreier::new(
         PermutationGroup::new(
             vec![
@@ -376,6 +430,20 @@ fn orbit_test_1() {
             ])
     );
 
+    let mut schreier = Schreier::new(
+        PermutationGroup::new(
+            vec![
+                Permutation::from_cycles(vec![vec![1,2]]),
+                Permutation::from_cycles(vec![vec![0,1,2,3,4,5,6]]),
+            ])
+    );
+
+    let mut schreier = Schreier::new(
+        PermutationGroup::new(
+            vec![Permutation::new(vec![0,1,2,3,4,5])])
+    );
+
+
     schreier.group.simple_generate_group();
     
     let range = schreier.action.get_range();
@@ -383,6 +451,9 @@ fn orbit_test_1() {
     let k = 3;
     let mut k_tuples_in_G = Schreier::get_S_choose_k_in_G(schreier.clone(), range, &S, k);
     println!("Subsets: {:?}", k_tuples_in_G);
+    let mut k_tuples_in_G = Schreier::get_S_choose_k_in_G_2(schreier.clone(), range, &S, k);
+    println!("Subsets: {:?}", k_tuples_in_G);
+
     let a: Vec<_> = SChooseKInG::new(schreier.clone(), range, &S, k).collect();
     println!("Subsets: {:?}", a);
 

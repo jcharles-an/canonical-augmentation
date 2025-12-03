@@ -1,6 +1,7 @@
-use bitmaps::Bitmap;
+use bitmaps::{Bitmap, Bits};
 use crate::data_structs::consts::{N, N_CERT, N_CONF};
 
+pub type BM64 = Bitmap<64>;
 pub type BM = Bitmap<N>;
 pub type BMC = Bitmap<N_CERT>;
 pub type BMConf = Bitmap<N_CONF>;
