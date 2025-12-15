@@ -1,13 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::BitAnd;
-use log::debug;
+use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::{Acquire, Release};
+use log::{debug, trace};
+use rayon::current_thread_index;
 use rayon::iter::MaxLen;
 use crate::data_structs::bitmaps::BM;
 use crate::data_structs::consts::{N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::data_structs::invariant_chain::InvariantChain;
 use crate::data_structs::nauty_graph::NautyGraph;
-use crate::schreier::permute_edges::PermuteEdges;
+use crate::group_actions::permute_edges::PermuteEdges;
 
 
 
@@ -16,13 +20,17 @@ pub struct Memory{
     pub tree: Vec<usize>,
     pub cert_usage: Vec<(usize,usize)>,
     pub early_leaves: Vec<Graph>,
+    pub thread_redistribution_needed: bool,
+    pub thread_redistribution_check: usize,
+    pub active_treads: Option<Arc<RwLock<HashSet<usize>>>>,
+    pub min_active_threads: usize,
     pub seen_leaves: usize,
     pub seen_vertices: usize,
     pub max_seen_level: usize,
 }
 
 impl Memory {
-    pub fn new(k: usize, max_level: usize) -> Memory {
+    pub fn new(k: usize, max_level: usize, active_threads: Option<Arc<RwLock<HashSet<usize>>>>) -> Memory {
         let ady_mat = vec![BM::new();N];
         let mut g = Graph {
             ady_matrix: ady_mat,
@@ -31,13 +39,18 @@ impl Memory {
         let tree = vec![0; max_level + 1];
         let cert_usage = vec![(0,0); max_level + 1];
         let final_nodes = Vec::new();
-        Memory {path,
+        Memory {
+            path,
             tree,
             cert_usage,
             early_leaves: final_nodes,
             seen_leaves: 0 ,
             seen_vertices: 0,
             max_seen_level: 0,
+            thread_redistribution_needed: false,
+            thread_redistribution_check: 500,
+            active_treads: active_threads,
+            min_active_threads: 4
         }
     }
 }
@@ -84,15 +97,21 @@ pub trait CanonicalAugmenter{
     }
 
     fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> (bool, bool) {
-        let chain = InvariantChain::new();
+        let chain = InvariantChain::new(0);
         let (used_cert, canonical_index) = chain.get_canonical_invariant_chain(subgraphs);
 
-        debug!("father: {}", graph.custom_print());
-        for graph in subgraphs{
-            debug!("sub: {}", graph.custom_print());
-        }
-        debug!("");
+        debug!("Debugging with certificates: ");
+        let chain = InvariantChain{links:0};
+        let (used_cert_bis, canonical_index_bis) = chain.get_canonical_invariant_chain(subgraphs);
 
+
+        trace!("father: {}", graph.custom_print());
+        for graph in subgraphs{
+            trace!("sub: {}", graph.custom_print());
+        }
+        trace!("");
+
+        // get real parent index inside subgraphs
         let mut graph_index= None;
         for (index, subgraph) in subgraphs.iter().enumerate() {
             if subgraph == graph {
@@ -100,7 +119,8 @@ pub trait CanonicalAugmenter{
                 break
             }
         }
-        debug!("Canonical idexes: {:?}", canonical_index);
+        debug!("Canonical indexes: {:?}", canonical_index);
+        debug!("Certs would choose : {:?}", canonical_index_bis.len());
         let result = canonical_index.contains(&graph_index.unwrap());
         if result{
             debug!("Found that p(X) is isomorph to m(X) with index {}",graph_index.unwrap())
@@ -131,9 +151,22 @@ pub trait CanonicalAugmenter{
 
         memory.tree[level] += 1;
 
-        let S = Self::get_available_points_stat(&graph, k);
+        let S = Self::get_available_points_stat(graph, k);
         if S.is_empty() || level > max_level {
             return Self::process_leaf(graph, level, max_level, memory);
+        }
+
+        if let Some(idle) = &memory.active_treads {
+            if memory.thread_redistribution_needed {
+                memory.early_leaves.push(graph.clone());
+                return;
+            }
+            if memory.seen_vertices > memory.thread_redistribution_check {
+                memory.seen_vertices = 0;
+                if idle.read().unwrap().len() < memory.min_active_threads {
+                    memory.thread_redistribution_needed = true;
+                }
+            }
         }
         if level > memory.max_seen_level {
             memory.max_seen_level = level;
@@ -141,14 +174,14 @@ pub trait CanonicalAugmenter{
 
         debug!("");
         debug!("canaug starting for level {level}");
-        debug!("graph: ");
+        debug!("graph: {}", graph);
         //Graph::print_ady_mat(&graph.ady_matrix);
 
         let mut non_iso_edges = Self::get_non_iso_edges(graph, k);
         //print_nested_optional_vec(&orbits);
         debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
 
-        /*
+
         debug!("$$ Certificates for level {level}:");
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             graph.add_edges(edges);
@@ -156,17 +189,18 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
-         */
+
 
 
         // Now we search in non iso (X)
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             debug!("$$ Extending for level {level} -> edge {edges:?}");
             graph.add_edges(edges);
-            debug!("Obtaining possible subgraphs...");
+            debug!("\nObtaining possible subgraphs...");
             let subgraphs = Self::get_subgraphs(graph);
             graph.remove_edges(edges);
 
+            debug!("\nChecking if father is iso to canonical...");
             let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(graph, subgraphs.as_slice());
 
             if used_cert {
@@ -188,6 +222,99 @@ pub trait CanonicalAugmenter{
             Self::canaug_corrected(k, graph, level + 1, memory, max_level);
             graph.remove_edges(edges);
         }
+    }
+
+    fn scoped_canaug<'scope>(
+        k: usize, graph: &'scope mut Graph, level: usize, memory:  &'scope mut Memory, max_level: usize,
+        active_threads: Arc<RwLock<HashSet<usize>>>,
+        num_total_threads: usize,
+        s: &'scope rayon::Scope<'scope>,
+    ){
+        let index = current_thread_index().expect("Must be run inside a Rayon thread.");
+
+        // --- CRITICAL SECTION 1: Mark as Active (Requires WRITE Lock) ---
+        // The write lock is needed to MODIFY the set (insert)
+        active_threads.write().unwrap().insert(index);
+
+        // --- MONITORING (Requires READ Lock) ---
+        // We check the count right after inserting our own index
+        let active_count = active_threads.read().unwrap().len();
+
+        // 🎯 The Trigger Logic: Check for under-utilization
+        if active_count < num_total_threads {
+            println!("[WARN] Node {} detected imbalance: {}/{} active.",
+                     index, active_count, num_total_threads);
+            s.spawn(move |_| {
+                Self::scoped_canaug(k, graph, level,memory, max_level, active_threads.clone(), num_total_threads, xs);
+            });
+            return;
+        }
+
+        memory.tree[level] += 1;
+
+        let S = Self::get_available_points_stat(graph, k);
+        if S.is_empty() || level > max_level {
+            return Self::process_leaf(graph, level, max_level, memory);
+        }
+
+        if level > memory.max_seen_level {
+            memory.max_seen_level = level;
+        }
+
+        debug!("");
+        debug!("canaug starting for level {level}");
+        debug!("graph: {}", graph);
+        //Graph::print_ady_mat(&graph.ady_matrix);
+
+        let mut non_iso_edges = Self::get_non_iso_edges(graph, k);
+        //print_nested_optional_vec(&orbits);
+        debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
+
+
+        debug!("$$ Certificates for level {level}:");
+        for (edge_index, edges) in non_iso_edges.iter().enumerate() {
+            graph.add_edges(edges);
+            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+            graph.remove_edges(edges);
+            debug!("edges{edges:?} -> certificate:{certificate}");
+        }
+
+
+
+        // Now we search in non iso (X)
+        for (edge_index, edges) in non_iso_edges.iter().enumerate() {
+            debug!("$$ Extending for level {level} -> edge {edges:?}");
+            graph.add_edges(edges);
+            debug!("\nObtaining possible subgraphs...");
+            let subgraphs = Self::get_subgraphs(graph);
+            graph.remove_edges(edges);
+
+            debug!("\nChecking if father is iso to canonical...");
+            let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(graph, subgraphs.as_slice());
+
+            if used_cert {
+                memory.cert_usage[level].1 += 1;
+            }
+            memory.cert_usage[level].0 += 1;
+
+            if !isomorph_to_canonical {
+                continue;
+            }
+
+
+            graph.add_edges(edges);
+            let adyMat = graph.ady_matrix.clone();
+            let (gen, cert ) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+            memory.path[level] = (edge_index,cert, Graph{
+                ady_matrix: adyMat,
+            });
+            Self::canaug_corrected(k, graph, level + 1, memory, max_level);
+            graph.remove_edges(edges);
+        }
+
+        // --- CRITICAL SECTION 2: Mark as Inactive (Requires WRITE Lock) ---
+        // The write lock is needed to MODIFY the set (remove)
+        active_threads.write().unwrap().remove(&index);
     }
 
 

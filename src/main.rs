@@ -12,14 +12,15 @@ use crate::data_structs::consts::{N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
 use crate::n_k_combinatorial::base_configs::*;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
+use crate::group_actions::groupAction::GroupAction;
+use data_structs::permutation::Permutation;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
 use nauty_Traces_sys::*;
 use std::ffi::{c_char, CString};
 use std::ptr;
 use crate::data_structs::bitmaps::BM;
+use crate::data_structs::logger::init_logger;
 use crate::n_k_combinatorial::{NkCom, NkCombManager};
 use crate::n_k_combinatorial::canaugFullPoint::CanaugFullPoint;
 use crate::n_k_combinatorial::canaugManager::CanaugManager;
@@ -30,6 +31,8 @@ use crate::n_k_combinatorial::NkCombManager::{manager, parallel_manager};
 mod schreier;
 mod data_structs;
 mod n_k_combinatorial;
+mod groups;
+mod group_actions;
 
 fn main_correct_pizana() {
     /*
@@ -59,8 +62,31 @@ fn main_correct_pizana() {
 
 
 fn main() {
-    std::env::set_var("RUST_LOG", "info");
-    env_logger::init();
+    init_logger();
+
+    let ady_mat = vec![BM::new();N];
+    let mut g = Graph {
+        ady_matrix: ady_mat,
+    };
+    let k = 3;
+    println!("Canag calculation for N_k: {N_CONF}_{k}");
+
+    let mut sum = 0;
+    let total = 1;
+
+    for i in 0..total {
+        let mut memory = Memory::new(k, N_CONF, None);
+        let now = Instant::now();
+        CanaugFullPoint::canaug_corrected(k, &mut g, 0, &mut memory, 10);
+        let elapsed = now.elapsed();
+        sum += elapsed.as_millis();
+        println!("{:?}\t{}", elapsed, memory.seen_leaves);
+    }
+
+    println!("Average: {}ms",sum as f64 / total as f64);
+}
+fn main_bfs() {
+    init_logger();
 
     info!("Starting schreier");
     let args: Vec<String> = env::args().collect();

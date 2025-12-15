@@ -1,43 +1,48 @@
 use std::cmp;
 use std::collections::HashMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Chain;
-use log::debug;
+use env_logger::Builder;
+use log::{debug, LevelFilter};
 use crate::data_structs;
 use crate::data_structs::bitmaps::BM;
 use crate::data_structs::consts::N;
 use crate::data_structs::graph::Graph;
-use crate::data_structs::invariant_chain::Invariant::U128;
+use crate::data_structs::logger::init_logger;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::n_k_combinatorial::NkCom::{NkComb};
 
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Invariant {
-    USize(usize),
-    U128(u128),
-    Tuple(i32, i32),
-    VecUSize(Vec<usize>),
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct InvariantChainValues {
+    connected_components: Option<usize>,
+    degeneracy: Option<usize>,
+    degree_sequence: Option<Vec<usize>>,
 }
-
 pub struct InvariantChain {
-    links: Vec<(&'static str, fn(&Graph) -> Invariant)>,
+    pub links: usize,
 }
 
 impl InvariantChain {
-    pub fn new() -> InvariantChain {
-        InvariantChain{links: vec![
-            ("connected_components", Self::get_connected_components as fn(&Graph) -> Invariant),
-            ("degeneracy", Self::get_degeneracy as fn(&Graph) -> Invariant),
-            ("degree_sequence", Self::get_degree_sequence as fn(&Graph) -> Invariant),
-        ]}
+    pub fn new(links: usize) -> InvariantChain {
+        InvariantChain{links}
     }
 
-    fn get_degree_sequence(graph: &Graph) -> Invariant {
+  fn fill_invariant_value(index: usize, graph: &Graph, values: &mut InvariantChainValues) {
+      match index {
+          0 => values.connected_components = Some(Self::get_connected_components(graph)),
+          1 => values.degeneracy = Some(Self::get_degeneracy(graph)),
+          2 => values.degree_sequence = Some(Self::get_degree_sequence(graph)),
+          _ => {}
+      }
+  }
+
+    fn get_degree_sequence(graph: &Graph) -> Vec<usize> {
         let mut degree_sequence = graph.ady_matrix.iter().map(|x| x.len()).collect::<Vec<usize>>();
         degree_sequence.sort();
-        Invariant::VecUSize(degree_sequence)
+        degree_sequence
     }
-    fn get_connected_components(graph: &Graph) -> Invariant {
+    fn get_connected_components(graph: &Graph) -> usize {
         let mut connected_components = vec![];
         let mut visited = vec![false; graph.ady_matrix.len()];
         for i in 0..graph.ady_matrix.len() {
@@ -45,7 +50,7 @@ impl InvariantChain {
                 connected_components.push(Self::get_connected_component(graph, i, &mut visited));
             }
         }
-        Invariant::USize(connected_components.len())
+        connected_components.len()
     }
     fn get_connected_component(graph: &Graph, start: usize, visited: &mut Vec<bool>) -> Vec<usize> {
 
@@ -60,7 +65,7 @@ impl InvariantChain {
         }
         connected_component
     }
-    fn get_degeneracy(graph: &Graph) -> Invariant {
+    fn get_degeneracy(graph: &Graph) -> usize {
         let n = graph.ady_matrix.len();
         let mut buckets = vec![BM::new(); n];  // n buckets for degrees 0 to n-1
         let mut degrees = vec![0; n];
@@ -91,61 +96,63 @@ impl InvariantChain {
                 buckets[degrees[neighbor]].set(neighbor, true);
             }
         }
-        Invariant::USize(max_degree)
+        max_degree
     }
 
-    fn get_certificate(graph: &Graph) -> Invariant {
+    fn get_certificate(graph: &Graph) -> u128 {
         let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
-        U128(certificate)
+        certificate
     }
 
     pub fn get_canonical_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
-        let mut invariants = vec![vec![]; subgraphs.len()];
-        for (chain_index, (func_name, link)) in self.links.iter().enumerate() {
-
-            for (graph_index, graph) in subgraphs.iter().enumerate() {
-                let invariant = link(graph);
-                invariants[graph_index].push(invariant.clone());
-            }
-
-            let mut invariant_count = HashMap::new();
-            for (graph_index, invariant_vec) in invariants.iter().enumerate() {
-                let count = invariant_count.get(invariant_vec).unwrap_or(&(0,0)).0 + 1;
-                invariant_count.insert(invariant_vec, (count, graph_index));
-            }
-
-            let mut canonical_candidates = Vec::new();
-            for (invariant, (count, graph_index)) in &invariant_count {
-                if *count == 1 {
-                    canonical_candidates.push((invariant, graph_index));
+        if self.links > 0 {
+            // vec containing all subgraph invariants
+            let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
+            for chain_index in 0..self.links {
+                for (graph_index, graph) in subgraphs.iter().enumerate() {
+                    Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
                 }
             }
 
-            debug!("invariant Count [{}]: {}", chain_index, func_name);
-            for (graph_idx, invariant) in invariant_count.iter().enumerate() {
-                debug!("  count: {} -> {:?}", invariant.1.0, invariant.0, );
+            let mut invariant_count: HashMap<InvariantChainValues, Vec<usize>> = HashMap::new();
+            let mut least_cert = invariants[0].clone();
+            for (graph_index, invariant_vec) in invariants.iter().enumerate() {
+
+                if invariant_vec < &least_cert {
+                    least_cert = invariant_vec.clone();
+                }
+
+                let certificate_indexes = invariant_count.get_mut(&invariant_vec);
+                if let Some(indexes) = certificate_indexes {
+                    indexes.push(graph_index);
+                } else{
+                    invariant_count.insert(invariant_vec.clone(), vec![graph_index]);
+                }
+            }
+            debug!("invariant Count:");
+            for (cert, vec) in &invariant_count {
+                debug!("\t{:?} -> {:?}", cert, vec);
             }
 
-            if !canonical_candidates.is_empty() {
-                canonical_candidates.sort();
-                return (false, vec![*canonical_candidates.first().unwrap().clone().1])
-            }
+            return (false, invariant_count.get(&least_cert).unwrap().clone())
         }
+
+
         // run logic to get from multiple chains
-        let mut certificates: HashMap<Invariant,Vec<usize>> = HashMap::new();
-        let mut least_cert = U128(u128::MAX);
+        let mut certificates: HashMap<u128,Vec<usize>> = HashMap::new();
+        let mut least_cert = u128::MAX;
         for (graph_index, graph) in subgraphs.iter().enumerate() {
             let invariant = Self::get_certificate(graph);
 
             if invariant < least_cert {
-                least_cert = invariant.clone();
+                least_cert = invariant;
             }
 
             let certificate_indexes = certificates.get_mut(&invariant);
-            if certificate_indexes.is_some() {
-                certificate_indexes.unwrap().push(graph_index);
+            if let Some(indexes) = certificate_indexes {
+                indexes.push(graph_index);
             } else{
-                certificates.insert(invariant.clone(), vec![graph_index]);
+                certificates.insert(invariant, vec![graph_index]);
             }
         }
 
@@ -155,7 +162,6 @@ impl InvariantChain {
         }
 
         (true, certificates.get(&least_cert).unwrap().clone())
-
     }
 
 
@@ -163,6 +169,7 @@ impl InvariantChain {
 
 #[test]
 fn test_invariant_chain(){
+    init_logger();
     let mut ady_mat = vec![
         data_structs::bitmaps::from_BE_array(&[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         data_structs::bitmaps::from_BE_array(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
@@ -206,12 +213,12 @@ fn test_invariant_chain(){
     };
 
     // Balanced Tree - 13 edges
-    //     0
-    //    /|\
-    //   1 2 3
-    //  /| | |\
-    // 4 5 6 7 8 9
-    // /       | |  |   |
+    //      0
+    //     /|\
+    //    1 2 3
+    //   /| | |\
+    //  4 5 6 7 8 9
+    // /  | | |   |
     let mut ady_mat_tree = vec![
         data_structs::bitmaps::from_BE_array(&[0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         data_structs::bitmaps::from_BE_array(&[1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]),
@@ -262,7 +269,12 @@ fn test_invariant_chain(){
     //let subgraphs = vec![g_path,g_tree,g_star,g_ring];
     let subgraphs = vec![g_path,g_tree,g_ring];
 
-    let chain = InvariantChain::new();
+    let chain = InvariantChain::new(0);
+
+    let index =  chain.get_canonical_invariant_chain(&subgraphs);
+    println!("{:?}", index);
+
+    let chain = InvariantChain{links:0};
 
     let index =  chain.get_canonical_invariant_chain(&subgraphs);
     println!("{:?}", index);
@@ -277,7 +289,7 @@ fn test_invariants(){
     };
     let invariant = InvariantChain::get_connected_components(&g);
     println!("{:?}", invariant);
-    assert_eq!(invariant, Invariant::USize(N));
+    assert_eq!(invariant, N);
 
     let mut ady_mat = vec![
         data_structs::bitmaps::from_BE_array(&[0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1]),

@@ -4,9 +4,9 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use crate::data_structs::consts::N;
 use crate::data_structs::stabilizer_chain::StabChain;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permutation_group::PermutationGroup;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
+use crate::groups::permutation_group::PermutationGroup;
 
 type Target = usize;
 pub trait Group:Clone{

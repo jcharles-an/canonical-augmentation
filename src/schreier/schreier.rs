@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use libc::sched_param;
 use petgraph::data::Element;
 use crate::data_structs::stabilizer_chain::StabChain;
-use crate::schreier::group::Group;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permutation_group::PermutationGroup;
-use crate::schreier::permute_points::PermutePoints;
+use crate::groups::group::Group;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
+use crate::groups::permutation_group::PermutationGroup;
+use crate::group_actions::permute_points::PermutePoints;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
 struct SchreierVector<T,U>{

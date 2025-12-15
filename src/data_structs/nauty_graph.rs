@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use crate::data_structs::graph::Graph;
-use crate::schreier::permutation::Permutation;
+use crate::data_structs::permutation::Permutation;
 use nauty_Traces_sys::{densenauty, empty_graph, graph, nauty_check, optionblk, statsblk, ADDONEEDGE, FALSE, NAUTYVERSIONID, SETWORDSNEEDED, TRUE, WORDSIZE};
 use petgraph::visit::Walker;
 use std::os::raw::{c_int, c_void};

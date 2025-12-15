@@ -36,6 +36,17 @@ pub fn into_set(set: &BM) -> Vec<usize> {
     }
     v
 }
+pub fn BM64_as_set(set: &BM64) -> Vec<usize> {
+    set.into_iter().collect::<Vec<usize>>()
+}
+
+pub fn slice_into_BM64(sl: &[usize]) -> BM64 {
+    let mut set = BM64::new();
+    for i in sl {
+        set.set(*i, true);
+    }
+    set
+}
 
 
 fn BMConf_from_array(bools: &[u8], LE: bool) -> BMConf {

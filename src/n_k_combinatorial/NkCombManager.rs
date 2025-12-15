@@ -22,7 +22,7 @@ use crate::data_structs::iterator_merger::IteratorMerger;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::n_k_combinatorial::NkCom::{Config, NkComb};
 use crate::n_k_combinatorial::NkCombManager;
-use crate::schreier::permutation::Permutation;
+use crate::data_structs::permutation::Permutation;
 
 pub fn get_extended_prefix_b_tree(k: usize, current_vertex: usize, graphsInfo: Vec<GraphInfo>) -> (BTree, BTree) {
     let mut extensions = BTreeMap::new();

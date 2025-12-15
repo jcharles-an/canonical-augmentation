@@ -1,9 +1,12 @@
 use rayon::iter::ParallelIterator;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering::Relaxed;
 use std::time::{Duration, Instant};
 use log::{debug, info};
 use rayon::prelude::IntoParallelIterator;
+use rayon::{current_num_threads, scope};
 use crate::data_structs::bitmaps::BM;
 use crate::data_structs::consts::{HMap, N, N_CONF};
 use crate::data_structs::graph::Graph;
@@ -21,7 +24,7 @@ impl CanaugManager {
         let mut g = Graph {
             ady_matrix: ady_mat,
         };
-        let mut memory = Memory::new(k, N_CONF);
+        let mut memory = Memory::new(k, N_CONF, None);
 
         CanaugFullPoint::canaug_corrected(k, &mut g, 0, &mut memory, leaf_level);
 
@@ -35,7 +38,7 @@ impl CanaugManager {
             {
                 // println!("Parallel {i} deployed!");
                 let thread_now = Instant::now();
-                let mut memory = Memory::new(k, N_CONF);
+                let mut memory = Memory::new(k, N_CONF, None);
                 CanaugFullPoint::canaug_corrected(k, &mut leaf, leaf_level
                                                    + 1, &mut memory, 70);
                 {
@@ -74,6 +77,39 @@ impl CanaugManager {
     }
 
 
+
+    pub fn launch_auto_balanced_parallel(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
+        let now = Instant::now();
+        let ady_mat = vec![BM::new(); N];
+        let mut g = Graph {
+            ady_matrix: ady_mat,
+        };
+        let mut memory = Memory::new(k, N_CONF,None);
+
+        let active_threads  = Arc::new(RwLock::new(HashSet::new()));
+        let num_total_threads = current_num_threads();
+
+        println!("Total Rayon threads: {}", num_total_threads);
+
+        
+        // 1. Create the Rayon Scope
+        scope(|s| {
+            // 2. Start the recursive process with the root node
+            s.spawn(|_| {
+                CanaugFullPoint::scoped_canaug(k, &mut g, 0, &mut memory, 70, active_threads, num_total_threads, s)
+            });
+        });
+
+        let elapsed = now.elapsed();
+
+        //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
+        println!("effective leaves:{:?}", memory.seen_leaves);
+        //println!("leaves:{:?}", hm.read().unwrap());
+        println!("Elapsed:{:?}", elapsed);
+        elapsed
+    }
+
+
     pub fn bfs(k: usize){
         let ady_mat = vec![BM::new(); N];
         let mut g = Graph {
@@ -106,13 +142,14 @@ impl CanaugManager {
         let total_threads = graphs.len();
         let mut threads_done = Arc::new(Mutex::new(0));
         let mut solutions = Arc::new(Mutex::new(0));
+        let mut timer = Arc::new(Mutex::new(Instant::now()));
         debug!("Tasks to parallelize:{}", total_threads);
         //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
         let all_graphs = graphs.into_par_iter().map(|(mut leaf)|
             {
                 // println!("Parallel {i} deployed!");
                 let thread_now = Instant::now();
-                let mut memory = Memory::new(k, N_CONF + 1);
+                let mut memory = Memory::new(k, N_CONF + 1, None);
                 CanaugFullPoint::canaug_corrected(k, &mut leaf, leaf_level
                     + 1, &mut memory, leaf_level + 1);
                 {
@@ -131,7 +168,12 @@ impl CanaugManager {
 
                 let threads_done = *threads_done.lock().unwrap();
                 if threads_done % 1000 == 0 {
-                    info!("threads done:{:?}, {:.2}%", threads_done,
+                    let secs = timer.lock().unwrap().elapsed().as_secs();
+                    let timePerThread = secs as f32 / (threads_done) as f32;
+
+                    let remaining = (total_threads - threads_done) as f32 * timePerThread ;
+                    let remaining_minutes = (remaining) as f32 / 60.0    ;
+                    info!("threads done:{:?}, {:.2}% \t secs : {secs} will finish in {remaining_minutes:.2} minutes", threads_done,
                          threads_done as f32 * 100.0 / total_threads as f32);
                 }
 
@@ -148,7 +190,7 @@ impl CanaugManager {
 
                  */
 
-                return memory.early_leaves
+                memory.early_leaves
             }).collect::<Vec<_>>();
 
         let mut leaves = Vec::new();

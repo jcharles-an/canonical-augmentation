@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use crate::data_structs::graph::Graph;
-use crate::schreier::permutation::Permutation;
+use crate::data_structs::permutation::Permutation;
 
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));
 

@@ -21,8 +21,8 @@ use log::debug;
 use crate::data_structs::cert_graph::CertGraph;
 use crate::data_structs::invariant_chain::InvariantChain;
 use crate::n_k_combinatorial::NkCom;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permute_edges::PermuteEdges;
+use crate::data_structs::permutation::Permutation;
+use crate::group_actions::permute_edges::PermuteEdges;
 
 
 
@@ -163,11 +163,6 @@ impl NkComb {
         // Get all the equivalence class representatives in S, according to G
         let non_iso_S = self.get_non_isomorfic_available_points(&schreier,S.as_slice());
 
-        let second = non_iso_S.clone().into_iter().filter(|x| x < &&9 ).rev().collect::<Vec<usize>>();
-        let mut non_iso_S = non_iso_S.clone().into_iter().filter(|x| x >= &&9 ).rev().collect::<Vec<usize>>();
-
-        non_iso_S.extend(second);
-
 
         // Set all the iterators for the non-isomorphic point candidates
         let mut s_choose_k_in_g_iterator = vec![];
@@ -187,7 +182,7 @@ impl NkComb {
 
         // Evaluate each iterator once, to know which has the least solutions
         let mut feasible_extenders = vec![vec![]; s_choose_k_in_g_iterator.len()];
-        let mut index = s_choose_k_in_g_iterator.len() - 1;
+        let mut index = 0;
         while let Some(extender_representative) = s_choose_k_in_g_iterator[index].next() {
             let current_vertex =  non_iso_S[index];
 
@@ -201,20 +196,20 @@ impl NkComb {
 
             // push feasible extender and advance index
             feasible_extenders[index].push(extender_representative);
-            index = index.checked_sub(1).unwrap_or(s_choose_k_in_g_iterator.len() -1);
+            index = (index + 1) % s_choose_k_in_g_iterator.len();
         }
 
         // Get all possible solutions to extend graph, non-isomorphic in G
         let mut chosen_feasible_extenders = &feasible_extenders[index];
         let current_vertex = non_iso_S[index];
 
-        self.tree[current_line].0 += chosen_feasible_extenders.len();
+       // self.tree[current_line-1].0 += chosen_feasible_extenders.len();
 
         for extender in chosen_feasible_extenders {
             // add solution to graph
             self.add_edges(current_vertex, extender);
             self.trace.push((current_vertex, extender.clone()));
-            self.rec_over_full_set(current_line - 1, remember);
+            self.rec_over_full_set(current_line + 1, remember);
             // reset inplace graph
             self.remove_edges(current_vertex, extender);
             self.trace.pop();
@@ -228,7 +223,7 @@ impl NkComb {
         for s in S_vector {
             S |= 1usize << s
         }
-        for index in (0..self.n).rev() {
+        for index in 0..self.n {
             // if element i is not on local_available_S, continue
             if (S >> index) & 1 == 0 {
                 continue;
@@ -437,7 +432,7 @@ impl NkComb {
 
     // gets all the points which still have room for neighbors (points are second half)
     fn get_available_points(&self) -> Vec<usize> {
-        Self::get_available_points_stat(&self.graph, self.n)
+        Self::get_available_points_stat(&self.graph, self.k)
     }
     // gets all the points which still have room for neighbors
     fn get_available_points_stat(graph: &Graph, k: usize) -> Vec<usize> {
@@ -453,7 +448,7 @@ impl NkComb {
 
     // gets all the points which still have room for neighbors (lines are first half)
     fn get_available_lines(&self) -> Vec<usize> {
-        Self::get_available_lines_stat(&self.graph, self.n)
+        Self::get_available_lines_stat(&self.graph, self.k)
     }
 
     // gets all the points which still have room for neighbors
@@ -561,7 +556,7 @@ impl NkComb {
     }
 
     fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> (bool, bool) {
-        let chain = InvariantChain::new();
+        let chain = InvariantChain::new(0);
         let (used_cert, canonical_index) = chain.get_canonical_invariant_chain(subgraphs);
 
         let mut graph_index= None;
@@ -585,7 +580,7 @@ impl NkComb {
 
     fn process_leaf(&mut self, current_line: usize){
         self.seen_leaves += 1;
-        self.tree[current_line].1 += 1;
+        //self.tree[current_line-2].1 += 1;
         if let Some(usage) = memory_stats() {
             let memory = usage.physical_mem as f64 / (1024.0 * 1024.0);
             if self.max_memory < memory {
@@ -710,15 +705,18 @@ fn test_n_comb() {
     let mut nkComb = NkComb::new(k);
     nkComb.config = Config{leaf_level: N, save_leaves: true};
     let now = Instant::now();
-    nkComb.rec_over_full_set(N_CONF, false);
+    nkComb.rec_over_full_set(N_CONF, true);
     let duration = now.elapsed();
     println!("\n{N_CONF}_{k}  Without memory:");
     println!("vertices: {}\nleaves: {}\nsols: {}", nkComb.seen_vertices, nkComb.seen_leaves, nkComb.early_leaves.read().unwrap().len());
     println!("Time elapsed: {:?}", duration);
+    /*
     println!("TREE: \n");
     for (i, (extensions, sols)) in nkComb.tree.iter().enumerate() {
         println!("\t{}\t{}\t{}", i, extensions,sols);
     }
+    
+     */
 
     return;
 

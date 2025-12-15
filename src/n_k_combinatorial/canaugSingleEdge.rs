@@ -5,7 +5,7 @@ use crate::data_structs::consts::{N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::n_k_combinatorial::canonicalAugmenterTrait::{CanonicalAugmenter, Memory};
-use crate::schreier::permute_edges::PermuteEdges;
+use crate::group_actions::permute_edges::PermuteEdges;
 
 pub struct SingleEdgeCanaug {
 }
@@ -101,7 +101,7 @@ fn test_canaug(){
         ady_matrix: ady_mat,
     };
     let k = 3;
-    let mut memory = Memory::new(k, N_CONF );
+    let mut memory = Memory::new(k, N_CONF, None );
 
     SingleEdgeCanaug::canaug_corrected(k,&mut g,0, &mut memory, 10);
     let mut total_usage = 0;
@@ -123,7 +123,7 @@ fn test_graph(){
 
     let graph = &mut Graph::from_string("1300:500:2600:900:1c00:b000:6800:c200:b:85:16:58:31:64:c0:a0");
     let k = 3;
-    let mut memory = Memory::new(k, N_CONF);
+    let mut memory = Memory::new(k, N_CONF, None);
 
     SingleEdgeCanaug::canaug_corrected(k, graph, 0, &mut memory , 10);
 }

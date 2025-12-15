@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::data_structs::consts::GraphInfo;
 use crate::data_structs::graph::Graph;
 use crate::data_structs::nauty_graph::NautyGraph;
-use crate::schreier::permutation::Permutation;
+use crate::data_structs::permutation::Permutation;
 use crate::schreier::schreier_permutation::Schreier;
 
 pub struct CertGraph {}

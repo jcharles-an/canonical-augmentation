@@ -16,7 +16,7 @@ use crate::data_structs::bitmaps::{BMConf, BM, BMC};
 use crate::data_structs::consts::{HMap, N, N_C, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::schreier::automorphism::Automorphism;
-use crate::schreier::groupAction::GroupAction;
+use crate::group_actions::groupAction::GroupAction;
 use rayon::prelude::*;
 use nauty_pet::prelude::*;
 use petgraph::dot::Config::GraphContentOnly;
@@ -24,7 +24,7 @@ use petgraph::dot::Dot;
 use petgraph::prelude::*;
 use crate::n_k_combinatorial::base_configs::get_n_k_base;
 use crate::n_k_combinatorial::n_k_combinatorial::CanonOption::{Inhouse, Nauty};
-use crate::schreier::permutation::Permutation;
+use crate::data_structs::permutation::Permutation;
 
 pub struct NkCombinatorial {
     pub k: usize,

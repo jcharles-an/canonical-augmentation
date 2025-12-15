@@ -7,3 +7,5 @@ pub mod cert_graph;
 pub mod cert_graph_file;
 pub mod iterator_merger;
 pub mod invariant_chain;
+pub mod logger;
+pub mod permutation;

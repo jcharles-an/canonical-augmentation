@@ -3,12 +3,12 @@ use std::fmt::{Debug, Formatter};
 use std::ops::Mul;
 use num_bigint::{ BigUint};
 use rand::rngs::ThreadRng;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permutation_group::PermutationGroup;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
+use crate::groups::permutation_group::PermutationGroup;
 use rand::seq::SliceRandom;
-use crate::schreier::group::Group;
-use crate::schreier::permute_points::PermutePoints;
+use crate::groups::group::Group;
+use crate::group_actions::permute_points::PermutePoints;
 
 #[derive(Eq, PartialEq)]
 pub struct RecStabilizerChain<G:Group ,GA: GroupAction>{

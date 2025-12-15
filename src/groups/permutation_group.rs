@@ -1,9 +1,9 @@
 use std::cmp;
 use std::collections::HashSet;
 use crate::data_structs::stabilizer_chain::StabChain;
-use crate::schreier::group::Group;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
+use crate::groups::group::Group;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
 use crate::schreier::schreier::Schreier;
 
 #[derive(Debug, Clone)]

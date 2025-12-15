@@ -5,13 +5,13 @@ use std::str::from_utf8_unchecked;
 use bitmaps::Bitmap;
 use libc::processor_set_load_info_data_t;
 use petgraph::visit::Walker;
-use crate::data_structs::bitmaps::BM64;
+use crate::data_structs::bitmaps::{BM64_as_set, BM64};
 use crate::data_structs::stabilizer_chain::StabChain;
-use crate::schreier::group::Group;
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permutation_group::PermutationGroup;
-use crate::schreier::permute_points::PermutePoints;
+use crate::groups::group::Group;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
+use crate::groups::permutation_group::PermutationGroup;
+use crate::group_actions::permute_points::PermutePoints;
 use crate::schreier::stabilizer_chain::RecStabilizerChain;
 
 struct SchreierVector<T,U>{
@@ -197,7 +197,7 @@ impl Schreier{
         for s in S {
             full_set |= 1usize << s
         }
-        Schreier::get_S_choose_k_in_G_rec(schreier, n, full_set,  k,0, &mut vec_holder, &mut k_tuples);
+        Schreier::get_S_choose_k_in_G_rec(schreier, n, full_set,  k,0, &mut vec_holder,0, &mut k_tuples);
         k_tuples
     }
 
@@ -211,7 +211,7 @@ impl Schreier{
     /// * `prefix` - current partial solution prefix holder
     /// * `k` - int, number of elements to choose
     /// * `k_tuples` - Vec holding all possible k-tuples in S, non-isomorph in G
-    pub fn get_S_choose_k_in_G_rec(mut schreier: Schreier, n:usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>,  k_tuples: &mut Vec<Vec<usize>> ){
+    pub fn get_S_choose_k_in_G_rec(mut schreier: Schreier, n:usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>, last_orbit: usize,  k_tuples: &mut Vec<Vec<usize>> ){
         if k == 0 {
             k_tuples.push(current_prefix.clone());
             return;
@@ -224,22 +224,32 @@ impl Schreier{
             if (local_available_S >> i)&1 == 0  {
                 continue;
             }
+            println!("available: {:8b}", local_available_S);
+
 
             // get an orbit representative for ith element in G
             let mut data = schreier.get_orbit(i as usize, n);
             let orbit_rep = data.orbit.first().unwrap();
             current_prefix.push(*orbit_rep);
+            // when chosing outside of the previous orbit, no more elements in that orbit are allowed
+
+
+            println!("orbit: {:?}", data.orbit);
+            let mut orbit_bitmap = 0;
+            for orb in data.orbit.iter() {
+                orbit_bitmap |= 1usize << orb;
+            }
+            println!("prefix: {:?}\n", current_prefix);
+            Self::get_S_choose_k_in_G_rec(Schreier::from_generators(data.stab_generators), n, local_available_S, k - 1,i + 1, current_prefix, orbit_bitmap, k_tuples);
+            current_prefix.pop();
+
 
             // make the elements inside the orbit unavailable
-            let mut mask = S;
             for orb in data.orbit{
-                mask ^= 1 << orb  // orbit union S / (orbit intersection S)
+                local_available_S &= !orbit_bitmap
             }
-            local_available_S &= mask; // local_available_S intersection S not in orbit
 
-
-            Self::get_S_choose_k_in_G_rec(Schreier::from_generators(data.stab_generators), n, S, k - 1,i + 1, current_prefix,  k_tuples);
-            current_prefix.pop();
+            // [[(10, 0), (10, 5), (10, 6)], [(10, 2), (10, 3), (10, 6)], [(10, 2), (10, 4), (10, 5)], [(10, 2), (10, 4), (10, 6)]]
         }
     }
 
@@ -267,11 +277,11 @@ impl Schreier{
         }
 
         let mut k_tuples = vec![];
-        Schreier::get_S_choose_k_in_G_rec_2(orbits, BM64::new(), k, &mut k_tuples);
+        Schreier::get_S_choose_k_in_G_rec_2(orbits, BM64::new(), s_set, k, &mut k_tuples);
         k_tuples.iter().map(|k_tuple| k_tuple.into_iter().collect() ).collect()
     }
 
-    pub fn get_S_choose_k_in_G_rec_2(mut orbits: Vec<BM64>, mut prefix: BM64, k: usize, k_tuples: &mut Vec<BM64>){
+    pub fn get_S_choose_k_in_G_rec_2(mut orbits: Vec<BM64>, mut prefix: BM64, S: BM64, k: usize, k_tuples: &mut Vec<BM64>){
 
         if prefix.len() == k {
             k_tuples.push(prefix);
@@ -286,7 +296,7 @@ impl Schreier{
         }
 
         //discard orbit
-        Self::get_S_choose_k_in_G_rec_2(orbits[1..orbits.len()].to_owned(), prefix, k, k_tuples);
+        Self::get_S_choose_k_in_G_rec_2(orbits[1..orbits.len()].to_owned(), prefix, S, k, k_tuples);
 
         let current_orbit = orbits.get_mut(0).unwrap();
         let element = current_orbit.first_index();
@@ -299,13 +309,13 @@ impl Schreier{
         prefix.set(element, true);
 
         // Keep orbit
-        Self::get_S_choose_k_in_G_rec_2(orbits.clone(), prefix, k, k_tuples);
+        // Self::get_S_choose_k_in_G_rec_2(orbits.clone(), prefix, k, k_tuples);
 
     }
 
 
-    pub fn get_S_choose_k(n:usize, S: &[usize], k: usize) -> Vec<Vec<usize>> {
-        let mut vec_holder = vec![];
+    pub fn get_S_choose_k(n:usize, S: &[usize], k: usize) -> Vec<BM64> {
+        let mut vec_holder = BM64::new();
         let mut prefixes_holder = vec![];
         let mut full_set = 0;
         for s in S {
@@ -314,7 +324,7 @@ impl Schreier{
         Schreier::get_S_choose_k_rec(n, full_set, k, 0, &mut vec_holder, &mut prefixes_holder);
         prefixes_holder
     }
-    pub fn get_S_choose_k_rec(n: usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>, k_tuples: &mut Vec<Vec<usize>>) {
+    pub fn get_S_choose_k_rec(n: usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut BM64, k_tuples: &mut Vec<BM64>) {
         if k == 0 {
             k_tuples.push(current_prefix.clone());
             return;
@@ -322,9 +332,9 @@ impl Schreier{
 
         for i in current_index..n {
             if (S >> i)&1 == 1 {
-                current_prefix.push(i);
+                current_prefix.set(i, true);
                 Self::get_S_choose_k_rec(n, S, k - 1, i + 1, current_prefix, k_tuples);
-                current_prefix.pop();
+                current_prefix.set(i, false);
             }
         }
     }
@@ -384,26 +394,31 @@ impl Iterator for SChooseKInG {
                 let mut data = self.schreier_per_level[level].as_ref().unwrap()
                     .get_orbit(index, self.n);
 
-
-                // make the elements inside the orbit unavailable
-                let mut mask = self.S;
-                for orbit_element in &data.orbit {
-                    mask ^= 1 << *orbit_element  // orbit union S / (orbit intersection S)
-                }
-                self.available_S_per_level[level] &= mask; // local_available_S intersection S not in orbit
-
                 //Add the orbit representative to current_prefix (it is always current index)
                 self.current_prefix.push(index); // current prefix len has changed here
 
                 if level + 1 == self.k {
                     let k_tuple = self.current_prefix.clone();
+
+                    for orbit_element in &data.orbit {
+                        self.available_S_per_level[level]  &= !(1 << *orbit_element)
+                    }
+
                     self.current_prefix.pop();
+
                     return Some(k_tuple);
                 }
 
+                //simulate recursive call
                 self.schreier_per_level[level + 1] = Some(Schreier::from_generators(data.stab_generators));
+                self.available_S_per_level[level + 1] = self.available_S_per_level[level];
                 self.index_per_level[level + 1] = self.current_prefix[level] + 1;
-                self.available_S_per_level[level + 1] = self.S;
+
+
+                // make the elements inside the orbit unavailable
+                for orbit_element in &data.orbit {
+                    self.available_S_per_level[level]  &= !(1 << *orbit_element)
+                }
             }
 
             self.current_prefix.pop();
@@ -461,11 +476,12 @@ fn orbit_test_1() {
     let mut full_k_tuples = Schreier::get_S_choose_k(range, &S,k);
     
     for full_k_tuple in &full_k_tuples {
+        let full_k_tuple = full_k_tuple.into_iter().collect::<Vec<usize>>();
         println!("{:?} has transporter: ", full_k_tuple);
         for k_tuple_in_G in &k_tuples_in_G {
-            let transporter = Schreier::transporter(schreier.clone(), full_k_tuple, k_tuple_in_G);
+            let transporter = Schreier::transporter(schreier.clone(), full_k_tuple.as_slice(), k_tuple_in_G);
             if let Some(trans) = transporter {
-                println!("{:?} = {:?} ^ {:?} = {:?}", k_tuple_in_G, full_k_tuple, trans, PermutePoints::apply_to_vec(&trans, full_k_tuple,));
+                println!("{:?} = {:?} ^ {:?} = {:?}", k_tuple_in_G, full_k_tuple.as_slice(), trans, PermutePoints::apply_to_vec(&trans, full_k_tuple.as_slice(),));
             }
         }
         println!();
@@ -499,11 +515,12 @@ fn orbit_test_3() {
     let mut full_k_tuples = Schreier::get_S_choose_k(range, &S,k);
     
     for full_prefix in &full_k_tuples {
+        let full_prefix = full_prefix.into_iter().collect::<Vec<usize>>();
         println!("{:?} has transporter: ", full_prefix);
         for prefix in &prefixes_holder {
-            let transporter = Schreier::transporter(schreier.clone(), full_prefix, prefix);
+            let transporter = Schreier::transporter(schreier.clone(), full_prefix.as_slice(), prefix);
             if let Some(trans) = transporter {
-                println!("{:?} = {:?} ^ {:?} = {:?}", prefix, full_prefix ,trans, PermutePoints::apply_to_vec( &trans, full_prefix,));
+                println!("{:?} = {:?} ^ {:?} = {:?}", prefix, full_prefix ,trans, PermutePoints::apply_to_vec( &trans, full_prefix.as_slice(),));
             }
         }
         println!();
@@ -621,5 +638,29 @@ fn orbit_test() {
 
 
 
+
+}
+
+#[test]
+fn test_S_choose_k() {
+
+    let mut schreier = Schreier::new(
+        PermutationGroup::new(
+            vec![
+                Permutation::from_cycles(vec![vec![1,4],vec![5,7]]),
+                Permutation::from_cycles(vec![vec![1,4,5,7]]),
+
+            ])
+    );
+
+    let range = schreier.action.get_range();
+    let S = vec![1,2,4,5,7];
+    let k = 3;
+    let mut full_k_tuples = Schreier::get_S_choose_k(range, &S,k);
+
+   println!("S_choose_{k} with range {range} over S:{S:?}:");
+    for k_tuple in full_k_tuples {
+        println!("{:?}", BM64_as_set(&k_tuple));
+    }
 
 }

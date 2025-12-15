@@ -5,9 +5,9 @@ use crate::data_structs::graph::{get_n_cube_ady_matrix, Graph};
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::data_structs::stabilizer_chain::StabChain;
 use crate::schreier::automorphism::CompareRes::{Better, Same, Worse};
-use crate::schreier::groupAction::GroupAction;
-use crate::schreier::permutation::Permutation;
-use crate::schreier::permutation_group::PermutationGroup;
+use crate::group_actions::groupAction::GroupAction;
+use crate::data_structs::permutation::Permutation;
+use crate::groups::permutation_group::PermutationGroup;
 use crate::schreier::schreier::Schreier;
 use libc::*;
 use log::{debug, info, trace, warn};
@@ -19,7 +19,7 @@ use std::io::{self, Write};
 use std::ops::{BitAnd, BitOr, BitXor};
 use std::os::raw::c_int;
 use std::sync::{Arc, RwLock};
-use crate::schreier::group::Group;
+use crate::groups::group::Group;
 
 #[derive(Debug)]
 enum CompareRes {
