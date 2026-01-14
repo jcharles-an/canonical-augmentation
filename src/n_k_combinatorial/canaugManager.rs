@@ -8,8 +8,9 @@ use log::{debug, info};
 use rayon::prelude::IntoParallelIterator;
 use rayon::{current_num_threads, scope};
 use crate::data_structs::bitmaps::BM;
-use crate::data_structs::consts::{HMap, N, N_CONF};
+use crate::data_structs::consts::{HMap, N, N_C, N_CONF};
 use crate::data_structs::graph::Graph;
+use crate::data_structs::logger::init_logger;
 use crate::n_k_combinatorial::canaugFullPoint::CanaugFullPoint;
 use crate::n_k_combinatorial::canonicalAugmenterTrait::{CanonicalAugmenter, Memory};
 use crate::n_k_combinatorial::NkCom::{Config, NkComb};
@@ -78,7 +79,7 @@ impl CanaugManager {
 
 
 
-    pub fn launch_auto_balanced_parallel(k: usize, leaf_level: usize, leaf_level_2: usize, print: bool) -> Duration {
+    pub fn launch_auto_balanced_parallel(k: usize, print: bool) -> Duration {
         let now = Instant::now();
         let ady_mat = vec![BM::new(); N];
         let mut g = Graph {
@@ -88,24 +89,26 @@ impl CanaugManager {
 
         let active_threads  = Arc::new(RwLock::new(HashSet::new()));
         let num_total_threads = current_num_threads();
+        let found_leaves = Arc::new(AtomicUsize::new(0));
+        info!("N_k conf {N_CONF}_{k}");
+        info!("Total Rayon threads: {}", num_total_threads);
 
-        println!("Total Rayon threads: {}", num_total_threads);
 
-        
         // 1. Create the Rayon Scope
         scope(|s| {
             // 2. Start the recursive process with the root node
-            s.spawn(|_| {
-                CanaugFullPoint::scoped_canaug(k, &mut g, 0, &mut memory, 70, active_threads, num_total_threads, s)
+            s.spawn(|inner| {
+                let max_level = 70; // Just to avoid early stop, max possible level is N_CONF * 2
+                CanaugFullPoint::scoped_canaug(k, g.clone(), 0, max_level, active_threads, num_total_threads, found_leaves.clone(), inner)
             });
         });
 
         let elapsed = now.elapsed();
 
         //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
-        println!("effective leaves:{:?}", memory.seen_leaves);
+        info!("effective leaves: {:?}", found_leaves.load(std::sync::atomic::Ordering::Acquire));
         //println!("leaves:{:?}", hm.read().unwrap());
-        println!("Elapsed:{:?}", elapsed);
+        info!("Elapsed:{:?}", elapsed);
         elapsed
     }
 
@@ -209,5 +212,6 @@ impl CanaugManager {
 }
 #[test]
 fn test_launch_parallel() {
-    CanaugManager::launch_parallel(3,4,0,false);
+    init_logger();
+    CanaugManager::launch_auto_balanced_parallel(3,false);
 }

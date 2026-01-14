@@ -3,7 +3,7 @@ use std::ops::BitAnd;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering::{Acquire, Release};
-use log::{debug, trace};
+use log::{debug, info, trace};
 use rayon::current_thread_index;
 use rayon::iter::MaxLen;
 use crate::data_structs::bitmaps::BM;
@@ -147,6 +147,16 @@ pub trait CanonicalAugmenter{
         return;
     }
 
+    fn process_autobalance_leaf(graph: &Graph, level: usize, max_level: usize, found_leaves: Arc<AtomicUsize>){
+        let current = found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        info!("current sols: {current}");
+        if std::env::var("RUST_LOG") == Ok("debug".to_string()) {
+            let (gen, certificate) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+            debug!("{certificate} -> {}", graph);
+            debug!("{level}:");
+        }
+    }
+
     fn canaug_corrected(k: usize, graph: &mut Graph, level: usize, memory:  &mut Memory, max_level: usize) {
 
         memory.tree[level] += 1;
@@ -224,41 +234,30 @@ pub trait CanonicalAugmenter{
         }
     }
 
-    fn scoped_canaug<'scope>(
-        k: usize, graph: &'scope mut Graph, level: usize, memory:  &'scope mut Memory, max_level: usize,
+    fn scoped_canaug(
+        k: usize, mut graph: Graph, level: usize, max_level: usize,
         active_threads: Arc<RwLock<HashSet<usize>>>,
         num_total_threads: usize,
-        s: &'scope rayon::Scope<'scope>,
+        found_leaves: Arc<AtomicUsize>,
+        s: &rayon::Scope,
     ){
         let index = current_thread_index().expect("Must be run inside a Rayon thread.");
 
-        // --- CRITICAL SECTION 1: Mark as Active (Requires WRITE Lock) ---
-        // The write lock is needed to MODIFY the set (insert)
+        // Mark as Active requires write Lock
         active_threads.write().unwrap().insert(index);
 
-        // --- MONITORING (Requires READ Lock) ---
+        // Monitoring requires read Lock
         // We check the count right after inserting our own index
         let active_count = active_threads.read().unwrap().len();
+        debug!("active threads: {:?}", active_threads.read().unwrap());
 
-        // 🎯 The Trigger Logic: Check for under-utilization
-        if active_count < num_total_threads {
-            println!("[WARN] Node {} detected imbalance: {}/{} active.",
-                     index, active_count, num_total_threads);
-            s.spawn(move |_| {
-                Self::scoped_canaug(k, graph, level,memory, max_level, active_threads.clone(), num_total_threads, xs);
-            });
-            return;
-        }
+        // Check for under-utilization
+        let offload_work = active_count < num_total_threads;
 
-        memory.tree[level] += 1;
-
-        let S = Self::get_available_points_stat(graph, k);
+        let S = Self::get_available_points_stat(&graph, k);
         if S.is_empty() || level > max_level {
-            return Self::process_leaf(graph, level, max_level, memory);
-        }
-
-        if level > memory.max_seen_level {
-            memory.max_seen_level = level;
+            active_threads.write().unwrap().remove(&index);
+            return Self::process_autobalance_leaf(&graph, level, max_level, found_leaves);
         }
 
         debug!("");
@@ -266,7 +265,7 @@ pub trait CanonicalAugmenter{
         debug!("graph: {}", graph);
         //Graph::print_ady_mat(&graph.ady_matrix);
 
-        let mut non_iso_edges = Self::get_non_iso_edges(graph, k);
+        let mut non_iso_edges = Self::get_non_iso_edges(&mut graph, k);
         //print_nested_optional_vec(&orbits);
         debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
 
@@ -274,7 +273,7 @@ pub trait CanonicalAugmenter{
         debug!("$$ Certificates for level {level}:");
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             graph.add_edges(edges);
-            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+            let (gen, certificate)= NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
             graph.remove_edges(edges);
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
@@ -286,16 +285,11 @@ pub trait CanonicalAugmenter{
             debug!("$$ Extending for level {level} -> edge {edges:?}");
             graph.add_edges(edges);
             debug!("\nObtaining possible subgraphs...");
-            let subgraphs = Self::get_subgraphs(graph);
+            let subgraphs = Self::get_subgraphs(&graph);
             graph.remove_edges(edges);
 
             debug!("\nChecking if father is iso to canonical...");
-            let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(graph, subgraphs.as_slice());
-
-            if used_cert {
-                memory.cert_usage[level].1 += 1;
-            }
-            memory.cert_usage[level].0 += 1;
+            let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(&graph, subgraphs.as_slice());
 
             if !isomorph_to_canonical {
                 continue;
@@ -304,16 +298,24 @@ pub trait CanonicalAugmenter{
 
             graph.add_edges(edges);
             let adyMat = graph.ady_matrix.clone();
-            let (gen, cert ) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
-            memory.path[level] = (edge_index,cert, Graph{
-                ady_matrix: adyMat,
-            });
-            Self::canaug_corrected(k, graph, level + 1, memory, max_level);
+            let ( gen, cert ) = NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
+
+            if offload_work {
+                debug!("[WARN] Node {} detected imbalance: {}/{} active.",
+                     index, active_count, num_total_threads);
+                let graph_copy = graph.clone();
+                let active_threads_copy = active_threads.clone();
+                let found_leaves_copy = found_leaves.clone();
+                s.spawn(move |inner| {
+                    Self::scoped_canaug(k, graph_copy, level, max_level, active_threads_copy, num_total_threads,  found_leaves_copy,inner);
+                });
+            } else {
+                Self::scoped_canaug(k, graph.clone(), level + 1, max_level,active_threads.clone(),num_total_threads,found_leaves.clone(),s);
+            }
             graph.remove_edges(edges);
         }
 
-        // --- CRITICAL SECTION 2: Mark as Inactive (Requires WRITE Lock) ---
-        // The write lock is needed to MODIFY the set (remove)
+        // Requires WRITE Lock
         active_threads.write().unwrap().remove(&index);
     }
 

@@ -63,27 +63,16 @@ fn main_correct_pizana() {
 
 fn main() {
     init_logger();
+    info!("Starting schreier");
+    let args: Vec<String> = env::args().collect();
 
-    let ady_mat = vec![BM::new();N];
-    let mut g = Graph {
-        ady_matrix: ady_mat,
-    };
-    let k = 3;
-    println!("Canag calculation for N_k: {N_CONF}_{k}");
-
-    let mut sum = 0;
-    let total = 1;
-
-    for i in 0..total {
-        let mut memory = Memory::new(k, N_CONF, None);
-        let now = Instant::now();
-        CanaugFullPoint::canaug_corrected(k, &mut g, 0, &mut memory, 10);
-        let elapsed = now.elapsed();
-        sum += elapsed.as_millis();
-        println!("{:?}\t{}", elapsed, memory.seen_leaves);
+    let mut k = 3;
+    if args.len() > 1 {
+        k = args[1].parse::<usize>().unwrap();
+        info!("Found k {k}");
     }
 
-    println!("Average: {}ms",sum as f64 / total as f64);
+    CanaugManager::launch_auto_balanced_parallel(k,false);
 }
 fn main_bfs() {
     init_logger();
