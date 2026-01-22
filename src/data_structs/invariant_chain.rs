@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Chain;
 use env_logger::Builder;
-use log::{debug, LevelFilter};
+use log::{debug, info, LevelFilter};
 use crate::data_structs;
 use crate::data_structs::bitmaps::BM;
-use crate::data_structs::consts::N;
+use crate::data_structs::consts::{METHOD, N};
 use crate::data_structs::graph::Graph;
 use crate::data_structs::logger::init_logger;
 use crate::data_structs::nauty_graph::NautyGraph;
@@ -18,21 +18,24 @@ pub struct InvariantChainValues {
     connected_components: Option<usize>,
     degeneracy: Option<usize>,
     degree_sequence: Option<Vec<usize>>,
+    certificate: Option<u128>,
 }
 pub struct InvariantChain {
     pub links: usize,
+    max_links: usize,
 }
 
 impl InvariantChain {
     pub fn new(links: usize) -> InvariantChain {
-        InvariantChain{links}
+        InvariantChain{links, max_links: 4}
     }
 
   fn fill_invariant_value(index: usize, graph: &Graph, values: &mut InvariantChainValues) {
       match index {
           0 => values.connected_components = Some(Self::get_connected_components(graph)),
-          1 => values.degeneracy = Some(Self::get_degeneracy(graph)),
+          1 => values.degree_sequence = Some(Self::get_degree_sequence(graph)),
           2 => values.degree_sequence = Some(Self::get_degree_sequence(graph)),
+          3 => values.certificate = Some(Self::get_certificate(graph)),
           _ => {}
       }
   }
@@ -104,40 +107,18 @@ impl InvariantChain {
         certificate
     }
 
-    pub fn get_canonical_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
-        if self.links > 0 {
-            // vec containing all subgraph invariants
-            let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
-            for chain_index in 0..self.links {
-                for (graph_index, graph) in subgraphs.iter().enumerate() {
-                    Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
-                }
-            }
-
-            let mut invariant_count: HashMap<InvariantChainValues, Vec<usize>> = HashMap::new();
-            let mut least_cert = invariants[0].clone();
-            for (graph_index, invariant_vec) in invariants.iter().enumerate() {
-
-                if invariant_vec < &least_cert {
-                    least_cert = invariant_vec.clone();
-                }
-
-                let certificate_indexes = invariant_count.get_mut(&invariant_vec);
-                if let Some(indexes) = certificate_indexes {
-                    indexes.push(graph_index);
-                } else{
-                    invariant_count.insert(invariant_vec.clone(), vec![graph_index]);
-                }
-            }
-            debug!("invariant Count:");
-            for (cert, vec) in &invariant_count {
-                debug!("\t{:?} -> {:?}", cert, vec);
-            }
-
-            return (false, invariant_count.get(&least_cert).unwrap().clone())
+    pub fn get_graphs_isomorph_to_canonical(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        match METHOD {
+            1 => self.get_least_certificate(subgraphs),
+            2 => self.get_unique_or_least_isomorphs(subgraphs),
+            3 => self.get_least_fast_invariant_chain(subgraphs),
+            4 => self.get_least_full_invariant_chain(subgraphs),
+            _ => (false, vec![]),
         }
 
+    }
 
+    pub fn get_least_certificate(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
         // run logic to get from multiple chains
         let mut certificates: HashMap<u128,Vec<usize>> = HashMap::new();
         let mut least_cert = u128::MAX;
@@ -160,8 +141,117 @@ impl InvariantChain {
         for (cert, vec) in &certificates {
             debug!("\t{:?} -> {:?}", cert, vec);
         }
+        // info!("Least cert: {:?}", least_cert);
 
         (true, certificates.get(&least_cert).unwrap().clone())
+    }
+
+    pub fn get_unique_or_least_isomorphs(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+            // vec containing all subgraph invariants
+            let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
+            for chain_index in 1..self.max_links - 1 {
+
+                // get invariant for all subgraphs
+                for (graph_index, graph) in subgraphs.iter().enumerate() {
+                    Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
+                }
+
+                // count how many times each invairant is repeated and which graphs have them
+                let mut invariant_count: HashMap<InvariantChainValues, Vec<usize>> = HashMap::new();
+                let mut least_cert = invariants[0].clone();
+                for (graph_index, invariant_vec) in invariants.iter().enumerate() {
+
+                    if invariant_vec < &least_cert {
+                        least_cert = invariant_vec.clone();
+                    }
+
+                    let certificate_indexes = invariant_count.get_mut(&invariant_vec);
+                    if let Some(indexes) = certificate_indexes {
+                        indexes.push(graph_index);
+                    } else{
+                        invariant_count.insert(invariant_vec.clone(), vec![graph_index]);
+                    }
+
+                    // check which invariants are present only once
+                    let mut canonical_candidates = Vec::new();
+                    for (invariant, graph_indices) in &invariant_count {
+                        if graph_indices.len() == 1 {
+                            canonical_candidates.push((invariant, graph_indices[0]));
+                        }
+                    }
+
+                    if !canonical_candidates.is_empty() {
+                        canonical_candidates.sort();
+                        info!("found single");
+                        return (false, vec![canonical_candidates.first().unwrap().1])
+                    }
+                }
+
+            }
+        info!("Went to certificates fallback ");
+
+        self.get_least_certificate(subgraphs)
+    }
+
+
+    pub fn get_least_full_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+            // vec containing all subgraph invariants
+            let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
+            for chain_index in 1..self.max_links {
+                for (graph_index, graph) in subgraphs.iter().enumerate() {
+                    Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
+                }
+            }
+
+            let minInvariant = invariants.iter().min().unwrap();
+        //info!("minInvariant: {:?}", minInvariant);
+
+        for (idx,invariant) in invariants.iter().enumerate() {
+            //info!("\t{:?} -> {:?}", idx, invariant);
+        }
+
+            let indexes = invariants.iter().enumerate().filter(|(idx,invariant)| invariant==&minInvariant ).map(|(idx,invariant)| idx).collect::<Vec<usize>>();
+
+        return (true, indexes);
+    }
+
+
+    /*
+    This method will calculate the full chain in order. If it finds any smaller cert in the candidates it will update
+    returns the indexes of the subgraph slice which correspond to the objects isomorph to the canonical one
+     */
+    pub fn get_least_fast_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        // vec containing all subgraph invariants
+        let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
+        let mut candidates = (0..subgraphs.len()).collect::<Vec<_>>();
+        for chain_index in 1..self.max_links {
+
+            let mut filtered_candidates = vec![];
+            let mut least_invariant_index = 0;
+
+            //Calculate invariant for all the subgraphs
+            for graph_index in candidates {
+                let graph = &subgraphs[graph_index];
+                Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
+                let current_invariant = &invariants[graph_index];
+                let least_invariant = &invariants[least_invariant_index];
+
+                if current_invariant < least_invariant {
+                    least_invariant_index = graph_index;
+                    filtered_candidates.clear();
+                    filtered_candidates.push(least_invariant_index);
+                } else if current_invariant == least_invariant {
+                    filtered_candidates.push(graph_index);
+                }
+            }
+
+            if filtered_candidates.len() == 1 {
+                return (chain_index == self.links, filtered_candidates);
+            }
+            candidates = filtered_candidates
+        }
+        info!("Filtered Candidates: {:?}", candidates);
+        (true, candidates)
     }
 
 
@@ -271,12 +361,17 @@ fn test_invariant_chain(){
 
     let chain = InvariantChain::new(0);
 
-    let index =  chain.get_canonical_invariant_chain(&subgraphs);
+    let index =  chain.get_unique_or_least_isomorphs(&subgraphs);
     println!("{:?}", index);
 
-    let chain = InvariantChain{links:0};
+    let chain = InvariantChain::new(0);
 
-    let index =  chain.get_canonical_invariant_chain(&subgraphs);
+    let index =  chain.get_unique_or_least_isomorphs(&subgraphs);
+    println!("{:?}", index);
+
+    let chain = InvariantChain::new(4);
+
+    let index =  chain.get_least_fast_invariant_chain(&subgraphs);
     println!("{:?}", index);
 
 }

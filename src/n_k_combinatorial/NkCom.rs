@@ -557,7 +557,7 @@ impl NkComb {
 
     fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> (bool, bool) {
         let chain = InvariantChain::new(0);
-        let (used_cert, canonical_index) = chain.get_canonical_invariant_chain(subgraphs);
+        let (used_cert, canonical_index) = chain.get_graphs_isomorph_to_canonical(subgraphs);
 
         let mut graph_index= None;
         for (index, subgraph) in subgraphs.iter().enumerate() {

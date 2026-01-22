@@ -2,7 +2,7 @@ use rayon::iter::ParallelIterator;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::Ordering::Relaxed;
+use std::sync::atomic::Ordering::{Relaxed, SeqCst};
 use std::time::{Duration, Instant};
 use log::{debug, info};
 use rayon::prelude::IntoParallelIterator;
@@ -79,7 +79,7 @@ impl CanaugManager {
 
 
 
-    pub fn launch_auto_balanced_parallel(k: usize, print: bool) -> Duration {
+    pub fn launch_auto_balanced_parallel(k: usize, print: bool) {
         let now = Instant::now();
         let ady_mat = vec![BM::new(); N];
         let mut g = Graph {
@@ -87,29 +87,36 @@ impl CanaugManager {
         };
         let mut memory = Memory::new(k, N_CONF,None);
 
-        let active_threads  = Arc::new(RwLock::new(HashSet::new()));
+        let active_threads  = Arc::new(AtomicUsize::new(0));
         let num_total_threads = current_num_threads();
         let found_leaves = Arc::new(AtomicUsize::new(0));
+        let interval = 10;
         info!("N_k conf {N_CONF}_{k}");
         info!("Total Rayon threads: {}", num_total_threads);
+        info!("Interval: {}", interval);
 
 
         // 1. Create the Rayon Scope
         scope(|s| {
             // 2. Start the recursive process with the root node
             s.spawn(|inner| {
+                let mut processed_nodes = 0;
+                let mut local_found_leaves = 0;
                 let max_level = 70; // Just to avoid early stop, max possible level is N_CONF * 2
-                CanaugFullPoint::scoped_canaug(k, g.clone(), 0, max_level, active_threads, num_total_threads, found_leaves.clone(), inner)
+                let mut offload_work = false;
+                let mut active_count = 0;
+                CanaugFullPoint::scoped_canaug(k, g.clone(), 0, max_level, interval, &active_threads, num_total_threads, &found_leaves, &mut local_found_leaves,&mut processed_nodes,true,0, &mut offload_work, &mut active_count ,inner);
             });
+
         });
 
         let elapsed = now.elapsed();
 
         //println!("Hashmap:{:?}", hm.last().unwrap().read().unwrap());
-        info!("effective leaves: {:?}", found_leaves.load(std::sync::atomic::Ordering::Acquire));
+        info!("effective leaves: {:?}", found_leaves.load(std::sync::atomic::Ordering::SeqCst));
         //println!("leaves:{:?}", hm.read().unwrap());
         info!("Elapsed:{:?}", elapsed);
-        elapsed
+        //elapsed
     }
 
 
@@ -143,8 +150,8 @@ impl CanaugManager {
         };
 
         let total_threads = graphs.len();
-        let mut threads_done = Arc::new(Mutex::new(0));
-        let mut solutions = Arc::new(Mutex::new(0));
+        let mut threads_done = Arc::new(AtomicUsize::new(0));
+        let mut solutions = Arc::new(AtomicUsize::new(0));
         let mut timer = Arc::new(Mutex::new(Instant::now()));
         debug!("Tasks to parallelize:{}", total_threads);
         //println!("Seen vertices:{}", n_k_combinatorial.vertices_seen);
@@ -155,29 +162,24 @@ impl CanaugManager {
                 let mut memory = Memory::new(k, N_CONF + 1, None);
                 CanaugFullPoint::canaug_corrected(k, &mut leaf, leaf_level
                     + 1, &mut memory, leaf_level + 1);
-                {
-                    let mut i = threads_done.lock().unwrap();
-                    *i += 1;
 
-                    if print {
-                        debug!("\t{i} done in {:?}, v: {} l:{}",
-                                 now.elapsed(), memory.seen_vertices,
-                                 memory.seen_leaves);
-                    }
-
-                    let mut i = solutions.lock().unwrap();
-                    *i += memory.seen_leaves;
+                let mut current_threads_done = threads_done.fetch_add(1,SeqCst);
+                if print {
+                    debug!("\t{current_threads_done} done in {:?}, v: {} l:{}",
+                             now.elapsed(), memory.seen_vertices,
+                             memory.seen_leaves);
                 }
 
-                let threads_done = *threads_done.lock().unwrap();
-                if threads_done % 1000 == 0 {
-                    let secs = timer.lock().unwrap().elapsed().as_secs();
-                    let timePerThread = secs as f32 / (threads_done) as f32;
+                solutions.fetch_add( memory.seen_leaves,SeqCst);
 
-                    let remaining = (total_threads - threads_done) as f32 * timePerThread ;
+                if current_threads_done % 1000 == 0 {
+                    let secs = timer.lock().unwrap().elapsed().as_secs();
+                    let timePerThread = secs as f32 / (current_threads_done) as f32;
+
+                    let remaining = (total_threads - current_threads_done) as f32 * timePerThread ;
                     let remaining_minutes = (remaining) as f32 / 60.0    ;
                     info!("threads done:{:?}, {:.2}% \t secs : {secs} will finish in {remaining_minutes:.2} minutes", threads_done,
-                         threads_done as f32 * 100.0 / total_threads as f32);
+                         current_threads_done as f32 * 100.0 / total_threads as f32);
                 }
 
 

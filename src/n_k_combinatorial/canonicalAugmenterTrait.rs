@@ -7,7 +7,7 @@ use log::{debug, info, trace};
 use rayon::current_thread_index;
 use rayon::iter::MaxLen;
 use crate::data_structs::bitmaps::BM;
-use crate::data_structs::consts::{N, N_CONF};
+use crate::data_structs::consts::{METHOD, N, N_CONF};
 use crate::data_structs::graph::Graph;
 use crate::data_structs::invariant_chain::InvariantChain;
 use crate::data_structs::nauty_graph::NautyGraph;
@@ -96,13 +96,13 @@ pub trait CanonicalAugmenter{
         true
     }
 
-    fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph] ) -> (bool, bool) {
+    fn is_isomorph_to_canonical(graph: &Graph, subgraphs:  &[Graph]) -> (bool, bool) {
         let chain = InvariantChain::new(0);
-        let (used_cert, canonical_index) = chain.get_canonical_invariant_chain(subgraphs);
+        //let (used_cert, canonical_index) = chain.get_full_canonical_invariant_chain(subgraphs);
+        let (used_cert, canonical_index) = chain.get_graphs_isomorph_to_canonical(subgraphs);
 
-        debug!("Debugging with certificates: ");
-        let chain = InvariantChain{links:0};
-        let (used_cert_bis, canonical_index_bis) = chain.get_canonical_invariant_chain(subgraphs);
+        //info!("Debugging with certificates: ");
+        //let (used_cert_bis, canonical_index_bis) = chain.get_full_canonical_invariant_chain(subgraphs);
 
 
         trace!("father: {}", graph.custom_print());
@@ -119,8 +119,8 @@ pub trait CanonicalAugmenter{
                 break
             }
         }
-        debug!("Canonical indexes: {:?}", canonical_index);
-        debug!("Certs would choose : {:?}", canonical_index_bis.len());
+        //info!("Canonical indexes: {:?}", canonical_index);
+        //info!("Full would choose : {:?}\n\n", canonical_index_bis);
         let result = canonical_index.contains(&graph_index.unwrap());
         if result{
             debug!("Found that p(X) is isomorph to m(X) with index {}",graph_index.unwrap())
@@ -147,9 +147,13 @@ pub trait CanonicalAugmenter{
         return;
     }
 
-    fn process_autobalance_leaf(graph: &Graph, level: usize, max_level: usize, found_leaves: Arc<AtomicUsize>){
-        let current = found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        info!("current sols: {current}");
+    fn process_autobalance_leaf(graph: &Graph, level: usize, max_level: usize, found_leaves: &mut usize){
+
+        *found_leaves += 1;
+        let thread_id = current_thread_index().expect("Must be run inside a Rayon thread.");
+        //info!("[{thread_id}] local solutions: {:?}", found_leaves);
+
+        //info!("current sols: {current}");
         if std::env::var("RUST_LOG") == Ok("debug".to_string()) {
             let (gen, certificate) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
             debug!("{certificate} -> {}", graph);
@@ -211,7 +215,7 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
 
             debug!("\nChecking if father is iso to canonical...");
-            let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(graph, subgraphs.as_slice());
+            let (isomorph_to_canonical, used_cert) = Self::is_isomorph_to_canonical(graph, subgraphs.as_slice(), );
 
             if used_cert {
                 memory.cert_usage[level].1 += 1;
@@ -235,29 +239,35 @@ pub trait CanonicalAugmenter{
     }
 
     fn scoped_canaug(
-        k: usize, mut graph: Graph, level: usize, max_level: usize,
-        active_threads: Arc<RwLock<HashSet<usize>>>,
+        k: usize, mut graph: Graph, level: usize, max_level: usize, interval: usize,
+        active_threads: &Arc<AtomicUsize>,
         num_total_threads: usize,
-        found_leaves: Arc<AtomicUsize>,
+        found_leaves: &Arc<AtomicUsize>,
+        local_found_leaves: &mut usize,
+        processed_nodes: &mut usize,
+        is_new_thread: bool,
+        mut thread_id: usize,
+        offload_work: &mut bool,
+        active_count: &mut usize,
         s: &rayon::Scope,
     ){
-        let index = current_thread_index().expect("Must be run inside a Rayon thread.");
-
         // Mark as Active requires write Lock
-        active_threads.write().unwrap().insert(index);
+        if is_new_thread {
+            thread_id = current_thread_index().expect("Must be run inside a Rayon thread.");
+            //info!("[{thread_id}] started new thread");
+            active_threads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        //info!("[{thread_id}] local solutions: {:?}", local_found_leaves);
 
-        // Monitoring requires read Lock
-        // We check the count right after inserting our own index
-        let active_count = active_threads.read().unwrap().len();
-        debug!("active threads: {:?}", active_threads.read().unwrap());
 
-        // Check for under-utilization
-        let offload_work = active_count < num_total_threads;
 
         let S = Self::get_available_points_stat(&graph, k);
         if S.is_empty() || level > max_level {
-            active_threads.write().unwrap().remove(&index);
-            return Self::process_autobalance_leaf(&graph, level, max_level, found_leaves);
+            //active_threads.write().unwrap().remove(&index);
+            found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Self::process_autobalance_leaf(&graph, level, max_level, local_found_leaves);
+            //info!("[{thread_id}] local solutions mutated to: {:?}", local_found_leaves);
+            return;
         }
 
         debug!("");
@@ -278,6 +288,16 @@ pub trait CanonicalAugmenter{
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
 
+
+        if *processed_nodes % interval == 0 {
+            // Monitoring requires read Lock
+            // We check the count right after inserting our own index
+            *active_count = active_threads.load(std::sync::atomic::Ordering::SeqCst);
+            debug!("[{thread_id}] processed nodes: {processed_nodes:?} active threads: {:?}/{num_total_threads}", active_count);
+
+            // Check for under-utilization
+            *offload_work = *active_count < num_total_threads
+        }
 
 
         // Now we search in non iso (X)
@@ -300,23 +320,38 @@ pub trait CanonicalAugmenter{
             let adyMat = graph.ady_matrix.clone();
             let ( gen, cert ) = NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
 
-            if offload_work {
-                debug!("[WARN] Node {} detected imbalance: {}/{} active.",
-                     index, active_count, num_total_threads);
+            if *offload_work {
+                //send to stack
+                debug!("[{thread_id}] [WARN] Node detected imbalance: {}/{} active.", active_count, num_total_threads);
                 let graph_copy = graph.clone();
                 let active_threads_copy = active_threads.clone();
                 let found_leaves_copy = found_leaves.clone();
                 s.spawn(move |inner| {
-                    Self::scoped_canaug(k, graph_copy, level, max_level, active_threads_copy, num_total_threads,  found_leaves_copy,inner);
+                    let mut processed_nodes = 0;
+                    let mut local_found_leaves = 0;
+                    let mut offload_work = false;
+                    let mut active_count = 0;
+                    Self::scoped_canaug(k, graph_copy, level, max_level, interval,&active_threads_copy, num_total_threads,  &found_leaves_copy, &mut local_found_leaves ,  &mut processed_nodes,true,0, &mut offload_work,&mut active_count, inner);
+
                 });
             } else {
-                Self::scoped_canaug(k, graph.clone(), level + 1, max_level,active_threads.clone(),num_total_threads,found_leaves.clone(),s);
+                // call in the same thread
+                *processed_nodes += 1;
+                Self::scoped_canaug(k, graph.clone(), level + 1, max_level, interval, active_threads, num_total_threads, found_leaves, local_found_leaves , processed_nodes, false,thread_id, offload_work,active_count, s);
+               // info!("[{thread_id}] finished son");
             }
             graph.remove_edges(edges);
         }
 
         // Requires WRITE Lock
-        active_threads.write().unwrap().remove(&index);
+        if is_new_thread{
+            //info!("[{thread_id}] finished thread sols {local_found_leaves}");
+
+            if *local_found_leaves > 0 {
+            }
+            active_threads.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            //found_leaves.fetch_add(*local_found_leaves, std::sync::atomic::Ordering::SeqCst);
+        }
     }
 
 

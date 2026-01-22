@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(refining_impl_trait)]
 
+use crate::data_structs::consts::METHOD;
 use std::collections::HashMap;
 use std::env;
 use std::time::Instant;
@@ -71,8 +72,17 @@ fn main() {
         k = args[1].parse::<usize>().unwrap();
         info!("Found k {k}");
     }
-
-    CanaugManager::launch_auto_balanced_parallel(k,false);
+    let mut option = 0;
+    if args.len() > 2 {
+        option = args[2].parse::<usize>().unwrap();
+        info!("Found option {option}");
+    }
+    info!("Will use method: {METHOD}");
+    match option {
+        0 => CanaugManager::launch_auto_balanced_parallel(k,false),
+        1 => CanaugManager::bfs(k),
+        _ => CanaugManager::launch_auto_balanced_parallel(k,false),
+    }
 }
 fn main_bfs() {
     init_logger();
