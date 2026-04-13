@@ -16,7 +16,6 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use base64::Engine;
 use base64::engine::general_purpose;
-use libc::{printf, rusage_info_t, uselocale};
 use log::debug;
 use crate::data_structs::cert_graph::CertGraph;
 use crate::data_structs::invariant_chain::InvariantChain;

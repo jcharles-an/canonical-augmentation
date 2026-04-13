@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use std::path::Prefix;
 use std::str::from_utf8_unchecked;
 use bitmaps::Bitmap;
-use libc::processor_set_load_info_data_t;
 use petgraph::visit::Walker;
 use crate::data_structs::bitmaps::{BM64_as_set, BM64};
 use crate::data_structs::stabilizer_chain::StabChain;

@@ -1,17 +1,17 @@
 #!/bin/bash
 
-N=11;
+N=12;
 K=3;
 O=0; #0 is autorebalance 1 is bfs
-M=2; #0 is canon, 1 is unique, 2 least full, 3 least fast
+M=2; #0 is canon, 1 is unique, 2 least fast, 3 least full
 
 names=("autorebalance_v2" "bfs_v1")
-certs=("leastCanon" "unique" "leastFull" "leastFast")
+certs=("leastCanon" "unique" "leastFast" "leastFull")
 
 export N_C=$N
 export N_METHOD=$M
 name="canaug_${N}_${K}_${names[$O]}_${certs[M]}"
-
+name="canaug_${N}_${K}_cheapktuple_${names[$O]}_${certs[M]}"rust
 
 echo "$name"
 

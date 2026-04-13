@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::io::Lines;
-use log::debug;
+use log::{debug, info};
 use crate::data_structs::bitmaps::{slice_into_BM64, BM64_as_set, BM};
 use crate::data_structs::consts::{N, N_C, N_CONF};
 use crate::data_structs::graph::Graph;
@@ -40,6 +40,7 @@ impl CanaugFullPoint {
 
 
 
+    // function calculates the non iso edges from the possible edges by choosing a representative of the edges for each orbit induced by the current Aut(G) with the first available point stabilized
     fn get_non_iso_edges_bis(graph: &mut Graph, k: usize) -> Vec<Vec<(usize, usize)>>{
         let n  = graph.ady_matrix.len();
         let mut non_iso_edges = Vec::new();
@@ -117,6 +118,7 @@ impl CanaugFullPoint {
     }
 
 
+    // function calculates the non iso edges from the possible edges by calling the SChooseKinG iterator over the group coming from stabilizing the first available point in Aut(G)
     fn get_non_iso_edges_n_choose_k_in_g(graph: &mut Graph, k: usize) -> Vec<Vec<(usize, usize)>>{
         let n  = graph.ady_matrix.len();
         let mut non_iso_edges = Vec::new();
@@ -173,7 +175,71 @@ impl CanaugFullPoint {
 
 
         }
+        // info!("Non iso edges: {:?}", non_iso_edges);
+
         non_iso_edges
+    }
+
+
+    fn get_non_iso_edges_cheap(graph: &mut Graph, k: usize) -> Vec<Vec<(usize, usize)>>{
+        let available_partitions = Self::get_available_lines_partitions(graph,k);
+        let element_number = available_partitions.iter().map(|part| part.len()).sum();
+        let available_points = Self::get_available_points_stat(graph,k);
+        let available_points_representative = available_points[0];
+
+        if element_number < k {
+            return vec![];
+        }
+
+        // Collect all feasible non iso edges
+        let mut non_iso_edges = Vec::new();
+        for ends in  Self::ktuples(&available_partitions, 0, k, element_number) {
+            for end in &ends{
+                graph.add_edge(available_points_representative,*end);
+            }
+
+            if Self::is_feasible_stat(graph,available_points_representative,ends.as_slice()) {
+                let (gen, certificate) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
+
+                let edges = ends.iter().map(|end| {(available_points_representative, *end)}).collect();
+                non_iso_edges.push(edges);
+            }
+
+            for end in &ends{
+                graph.remove_edge(available_points_representative,*end);
+            }
+
+
+        }
+        // info!("Non iso edges: {:?}", non_iso_edges);
+        non_iso_edges
+    }
+
+
+    fn ktuples<T: Clone>(p: &Vec<Vec<T>>, i: usize, k: usize, remaining: usize) -> Vec<Vec<T>>{
+        assert!(k <= remaining);
+
+        // if i equals the number of equivalence classes
+        if i == p.len()-1{
+            vec![p[i][0..k].to_vec()]
+        }
+        else{
+            let lb = if k+p[i].len() < remaining {0} else {k+p[i].len()-remaining};
+            let ub = k.min(p[i].len());
+            let mut result = Vec::new();
+            for m in (lb..=ub).rev(){
+                let prefix: Vec<T> = p[i][0..m].to_vec();
+                let mut tuples = Self::ktuples(p,i+1,k-m, remaining-p[i].len());
+                for tuple in &mut tuples {
+                    for x in prefix.iter().rev() {
+                        tuple.insert(0, x.clone());
+                    }
+                }
+                result.extend(tuples);
+            }
+            result
+        }
+
     }
 }
 impl CanonicalAugmenter for CanaugFullPoint {
@@ -194,7 +260,10 @@ impl CanonicalAugmenter for CanaugFullPoint {
     }
 
     fn get_non_iso_edges(graph: &mut Graph, k: usize) -> Vec<Vec<(usize, usize)>>{
-       Self::get_non_iso_edges_n_choose_k_in_g(graph, k)
+        let mut res;
+        res = Self::get_non_iso_edges_n_choose_k_in_g(graph, k);
+        //res = Self::get_non_iso_edges_cheap(graph, k);
+        res
     }
 
 
@@ -332,9 +401,15 @@ fn test_s_choose_k_in_g_2(){
         let (gen, cert) = NautyGraph::get_aut_generators_and_cert(&graph).unwrap();
         println!( "{cert} -> {graph}");
 
-
         graph.remove_edges(edge_set);
+    }
+}
 
+#[test]
+fn test_ktuples_cheap(){
+    let s = vec![vec!["hola1","hola2"],vec!["foo1",],vec!["bar1","bar2","bar3"]];
+    for t in CanaugFullPoint::ktuples(&s,0,3,6){
+        println!("{:?}", t);
     }
 
 }

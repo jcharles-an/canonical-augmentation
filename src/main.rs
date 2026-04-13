@@ -70,14 +70,14 @@ fn main() {
     let mut k = 3;
     if args.len() > 1 {
         k = args[1].parse::<usize>().unwrap();
-        info!("Found k {k}");
     }
-    let mut option = 0;
+    let mut option = 1;
     if args.len() > 2 {
         option = args[2].parse::<usize>().unwrap();
-        info!("Found option {option}");
     }
-    info!("Will use method: {METHOD}");
+    info!("Will use k {k}");
+    info!("Will use option: {option}");
+    info!("Will use certificate method: {METHOD}\n");
     match option {
         0 => CanaugManager::launch_auto_balanced_parallel(k,false),
         1 => CanaugManager::bfs(k),

@@ -82,6 +82,41 @@ pub trait CanonicalAugmenter{
         available_points_and_lines
     }
 
+    // TODO: vec<vec<usize>> could be vec<Bitmap(32)>
+    fn get_available_lines_partitions(graph: &Graph, k: usize) -> Vec<Vec<usize>> {
+        let n = graph.ady_matrix.len();
+
+        let mut neighborhoods = graph.ady_matrix.iter().
+            enumerate().
+            take(n/2).
+            filter(|&(_,neighbors)| neighbors.len() < k).
+            map(|(i,neighbors)| (neighbors, i)).collect::<Vec<(&BM, usize)>>();
+
+        neighborhoods.sort();
+
+        // create index partitions from sorted neighborhoods
+        let mut last_neighborhood = neighborhoods[0].0;
+        let mut partitions = vec![];
+        let mut current_partition = vec![];
+        for (neighborhood, idx) in neighborhoods {
+            if (neighborhood != last_neighborhood){
+                // save current partition
+                partitions.push(current_partition.clone());
+                last_neighborhood = neighborhood;
+                //Start new partition
+                current_partition.clear();
+                current_partition.push(idx);
+            } else {
+                current_partition.push(idx);
+            }
+        }
+
+        // save last partition
+        partitions.push(current_partition.clone());
+
+        partitions
+    }
+
     fn is_feasible_stat(graph: &Graph, origin:usize, ends:&[usize]) -> bool {
         let ends = graph.ady_matrix[origin].clone().into_iter().collect::<Vec<usize>>();
         for i in (0..ends.len()-1){
@@ -264,7 +299,8 @@ pub trait CanonicalAugmenter{
         let S = Self::get_available_points_stat(&graph, k);
         if S.is_empty() || level > max_level {
             //active_threads.write().unwrap().remove(&index);
-            found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let current_found_leaves = found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            info!("[{thread_id}] New solution found, solution number: {:?}", current_found_leaves);
             Self::process_autobalance_leaf(&graph, level, max_level, local_found_leaves);
             //info!("[{thread_id}] local solutions mutated to: {:?}", local_found_leaves);
             return;
