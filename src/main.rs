@@ -71,12 +71,14 @@ fn main() {
     if args.len() > 1 {
         k = args[1].parse::<usize>().unwrap();
     }
-    let mut option = 1;
+    let mut option = 0; //0 is autorebalance 1 is bfs
     if args.len() > 2 {
         option = args[2].parse::<usize>().unwrap();
     }
     info!("Will use k {k}");
     info!("Will use option: {option}");
+
+    //0 is canon, 1 is unique, 2 least fast, 3 least full
     info!("Will use certificate method: {METHOD}\n");
     match option {
         0 => CanaugManager::launch_auto_balanced_parallel(k,false),

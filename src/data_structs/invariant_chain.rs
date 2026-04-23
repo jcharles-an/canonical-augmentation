@@ -32,7 +32,8 @@ impl InvariantChain {
 
     fn fill_invariant_value(link: usize, graph: &Graph, values: &mut InvariantChainValues) {
         match link {
-            0 => values.connected_components = Some(Self::get_connected_components(graph)),
+            //0 => values.connected_components = Some(Self::get_connected_components(graph)),
+            0 => values.connected_components = Some(Self::nr_connected_components(graph)),
             1 => values.degeneracy = Some(Self::get_degeneracy(graph)),
             2 => values.degree_sequence = Some(Self::get_degree_sequence(graph)),
             3 => values.certificate = Some(Self::get_certificate(graph)),
@@ -68,6 +69,41 @@ impl InvariantChain {
         }
         connected_component
     }
+
+
+    fn connected_component(m: &[BM], root: usize) -> BM{
+        let mut visited = BM::from_value(0);
+        let mut frontier = BM::from_value(1<<root);
+        while visited.is_empty() || !frontier.is_empty() {
+            let visiting = frontier.first_index().unwrap();
+            let visiting_neighbors = m[visiting];
+            let new_discovered = visiting_neighbors & (!(visited | frontier ));
+            frontier |= new_discovered;
+            visited.set(visiting,true);
+            frontier.set(visiting,false);
+        }
+        visited
+    }
+
+    fn nr_connected_components(graph: &Graph) -> usize {
+        //let mut res = Vec::new();
+        let mut res = 0;
+        let mut union = BM::from_value(0);
+        loop{
+            let all_vertices = BM::from_value((1<<graph.ady_matrix.len())-1);
+            let not_considered = all_vertices & (!(union));
+            if *not_considered.as_value() == 0 {break;};
+            let root = not_considered.first_index().unwrap();
+            let new_component = Self::connected_component(graph.ady_matrix.as_slice(), root);
+            res +=1;
+            //res.push(new_component);
+            union |= new_component;
+        }
+        res
+    }
+
+
+
     fn get_degeneracy(graph: &Graph) -> usize {
         let n = graph.ady_matrix.len();
         let mut buckets = vec![BM::new(); n];  // n buckets for degrees 0 to n-1
@@ -221,9 +257,9 @@ impl InvariantChain {
         let minInvariant = invariants.iter().min().unwrap();
         //info!("minInvariant: {:?}", minInvariant);
 
-        for (idx,invariant) in invariants.iter().enumerate() {
-            //info!("\t{:?} -> {:?}", idx, invariant);
-        }
+        //for (idx,invariant) in invariants.iter().enumerate() {
+        //    info!("\t{:?} -> {:?}", idx, invariant);
+        //}
 
         let indexes = invariants.iter().enumerate().filter(|(idx,invariant)| invariant==&minInvariant ).map(|(idx,invariant)| idx).collect::<Vec<usize>>();
 
@@ -235,7 +271,7 @@ impl InvariantChain {
     This method will calculate the full chain in order. If it finds any smaller cert in the candidates it will update
     returns the indexes of the subgraph slice which correspond to the objects isomorph to the canonical one
      */
-    pub fn get_least_fast_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        pub fn get_least_fast_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
         // vec containing all subgraph invariants
         let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
         let mut candidates = (0..subgraphs.len()).collect::<Vec<_>>();

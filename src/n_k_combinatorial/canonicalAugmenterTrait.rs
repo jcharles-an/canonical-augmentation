@@ -231,6 +231,7 @@ pub trait CanonicalAugmenter{
         debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
 
 
+        /*
         debug!("$$ Certificates for level {level}:");
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             graph.add_edges(edges);
@@ -238,6 +239,7 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
+         */
 
 
 
@@ -264,10 +266,12 @@ pub trait CanonicalAugmenter{
 
             graph.add_edges(edges);
             let adyMat = graph.ady_matrix.clone();
+            /*
             let (gen, cert ) = NautyGraph::get_aut_generators_and_cert(graph).unwrap();
             memory.path[level] = (edge_index,cert, Graph{
                 ady_matrix: adyMat,
             });
+             */
             Self::canaug_corrected(k, graph, level + 1, memory, max_level);
             graph.remove_edges(edges);
         }
@@ -300,7 +304,7 @@ pub trait CanonicalAugmenter{
         if S.is_empty() || level > max_level {
             //active_threads.write().unwrap().remove(&index);
             let current_found_leaves = found_leaves.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            info!("[{thread_id}] New solution found, solution number: {:?}", current_found_leaves);
+            //info!("[{thread_id}] New solution found, solution number: {:?}", current_found_leaves);
             Self::process_autobalance_leaf(&graph, level, max_level, local_found_leaves);
             //info!("[{thread_id}] local solutions mutated to: {:?}", local_found_leaves);
             return;
@@ -316,6 +320,7 @@ pub trait CanonicalAugmenter{
         debug!("non_iso_edges for level {level}: {:?}", non_iso_edges);
 
 
+
         debug!("$$ Certificates for level {level}:");
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             graph.add_edges(edges);
@@ -323,6 +328,7 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
+
 
 
         if *processed_nodes % interval == 0 {
@@ -340,7 +346,7 @@ pub trait CanonicalAugmenter{
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             debug!("$$ Extending for level {level} -> edge {edges:?}");
             graph.add_edges(edges);
-            debug!("\nObtaining possible subgraphs...");
+            debug!("\nObtaining possible subgraphs/fathers...");
             let subgraphs = Self::get_subgraphs(&graph);
             graph.remove_edges(edges);
 

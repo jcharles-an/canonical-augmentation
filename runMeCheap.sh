@@ -1,6 +1,6 @@
 #!/bin/bash
 
-N=12;
+N=13;
 K=3;
 O=0; #0 is autorebalance 1 is bfs
 M=2; #0 is canon, 1 is unique, 2 least fast, 3 least full
