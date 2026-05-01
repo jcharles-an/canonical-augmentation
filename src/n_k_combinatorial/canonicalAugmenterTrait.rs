@@ -290,14 +290,13 @@ pub trait CanonicalAugmenter{
         active_count: &mut usize,
         s: &rayon::Scope,
     ){
-        // Mark as Active requires write Lock
+        // This block adds the new thread to the active pool
         if is_new_thread {
             thread_id = current_thread_index().expect("Must be run inside a Rayon thread.");
             //info!("[{thread_id}] started new thread");
             active_threads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
         //info!("[{thread_id}] local solutions: {:?}", local_found_leaves);
-
 
 
         let S = Self::get_available_points_stat(&graph, k);
@@ -321,6 +320,7 @@ pub trait CanonicalAugmenter{
 
 
 
+        /* debugging, uncomment to check each certificate
         debug!("$$ Certificates for level {level}:");
         for (edge_index, edges) in non_iso_edges.iter().enumerate() {
             graph.add_edges(edges);
@@ -328,8 +328,7 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
             debug!("edges{edges:?} -> certificate:{certificate}");
         }
-
-
+         */
 
         if *processed_nodes % interval == 0 {
             // Monitoring requires read Lock
@@ -385,12 +384,9 @@ pub trait CanonicalAugmenter{
             graph.remove_edges(edges);
         }
 
-        // Requires WRITE Lock
+        // This block deletes the thread from the active pool, as it has already finished its work
         if is_new_thread{
             //info!("[{thread_id}] finished thread sols {local_found_leaves}");
-
-            if *local_found_leaves > 0 {
-            }
             active_threads.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
             //found_leaves.fetch_add(*local_found_leaves, std::sync::atomic::Ordering::SeqCst);
         }

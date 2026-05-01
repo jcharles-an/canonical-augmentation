@@ -198,7 +198,7 @@ pub struct SliceReader<'a>{
     offset: usize,
 }
 impl SliceReader<'_> {
-    pub fn new(bytes: &[u8]) -> SliceReader {
+    pub fn new(bytes: &'_ [u8]) -> SliceReader<'_> {
         SliceReader{
             bytes,
             offset:0

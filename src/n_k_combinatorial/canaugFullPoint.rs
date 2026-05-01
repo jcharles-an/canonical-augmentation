@@ -136,7 +136,6 @@ impl CanaugFullPoint {
         let data = schreier.get_orbit(available_points_representative, n);
 
         let identity = schreier.group.get_identity();
-        let stabilizer_is_trivial = data.stab_generators.iter().all(|x| &identity == x);
         let schreier_for_stab = Schreier::from_generators(data.stab_generators);
 
         let s_choose_k_in_g_iter = SChooseKInG::new(schreier_for_stab, n, available_lines.as_slice(), k - graph.ady_matrix[available_points_representative].len());
