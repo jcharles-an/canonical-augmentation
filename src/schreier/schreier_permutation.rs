@@ -177,6 +177,12 @@ impl Schreier{
         Some(g)
     }
 
+    pub fn get_pointwise_transporter(data: &Data, start: usize, end: usize) -> Option<Permutation>{
+        let start_to_origin = PermutationGroup::get_inverse( data.transversal[start].as_ref()? );
+        let transporter = PermutationGroup::operate(data.transversal[end].as_ref()?, &start_to_origin);
+        Some(transporter)
+    }
+
     /// Calculates all possible k-tuples in S, non-isomorph in G
     ///
     /// # Arguments
@@ -187,7 +193,7 @@ impl Schreier{
     ///
     /// # Returns
     /// Vec holding all possible k-tuples in S, non-isomorph in G
-    pub fn get_S_choose_k_in_G(mut schreier: Schreier,n:usize, S: &[usize], k: usize) -> Vec<Vec<usize>> {
+    pub fn get_S_choose_k_in_G(schreier: Schreier,n:usize, S: &[usize], k: usize) -> Vec<Vec<usize>> {
         let mut vec_holder = vec![];
         let mut k_tuples = vec![];
 
@@ -196,7 +202,7 @@ impl Schreier{
         for s in S {
             full_set |= 1usize << s
         }
-        Schreier::get_S_choose_k_in_G_rec(schreier, n, full_set,  k,0, &mut vec_holder,0, &mut k_tuples);
+        Schreier::get_S_choose_k_in_G_rec(&schreier, n, full_set,  k,0, &mut vec_holder,0, &mut k_tuples);
         k_tuples
     }
 
@@ -210,9 +216,10 @@ impl Schreier{
     /// * `prefix` - current partial solution prefix holder
     /// * `k` - int, number of elements to choose
     /// * `k_tuples` - Vec holding all possible k-tuples in S, non-isomorph in G
-    pub fn get_S_choose_k_in_G_rec(mut schreier: Schreier, n:usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>, last_orbit: usize,  k_tuples: &mut Vec<Vec<usize>> ){
+    pub fn get_S_choose_k_in_G_rec( schreier: &Schreier, n:usize, S: usize, k: usize, mut current_index: usize, mut current_prefix: &mut Vec<usize>, last_orbit: usize,  k_tuples: &mut Vec<Vec<usize>> ){
         if k == 0 {
-            k_tuples.push(current_prefix.clone());
+            let mut current = current_prefix.clone();
+            k_tuples.push(current);
             return;
         }
         
@@ -226,11 +233,11 @@ impl Schreier{
             println!("available: {:8b}", local_available_S);
 
 
-            // get an orbit representative for ith element in G
+            // get an orbit representative in G for ith element
             let mut data = schreier.get_orbit(i as usize, n);
             let orbit_rep = data.orbit.first().unwrap();
             current_prefix.push(*orbit_rep);
-            // when chosing outside of the previous orbit, no more elements in that orbit are allowed
+            // when choosing outside the previous orbit, no more elements in that orbit are allowed
 
 
             println!("orbit: {:?}", data.orbit);
@@ -239,14 +246,12 @@ impl Schreier{
                 orbit_bitmap |= 1usize << orb;
             }
             println!("prefix: {:?}\n", current_prefix);
-            Self::get_S_choose_k_in_G_rec(Schreier::from_generators(data.stab_generators), n, local_available_S, k - 1,i + 1, current_prefix, orbit_bitmap, k_tuples);
+            Self::get_S_choose_k_in_G_rec(&Schreier::from_generators(data.stab_generators), n, local_available_S, k - 1,i + 1, current_prefix, orbit_bitmap, k_tuples);
             current_prefix.pop();
 
 
             // make the elements inside the orbit unavailable
-            for orb in data.orbit{
-                local_available_S &= !orbit_bitmap
-            }
+            local_available_S &= !orbit_bitmap
 
             // [[(10, 0), (10, 5), (10, 6)], [(10, 2), (10, 3), (10, 6)], [(10, 2), (10, 4), (10, 5)], [(10, 2), (10, 4), (10, 6)]]
         }
@@ -337,6 +342,78 @@ impl Schreier{
             }
         }
     }
+
+
+    /// Returns the lexicographically smallest image of a subset under group G
+    pub fn get_smallest_image(subset: &Vec<usize>, chain: &Schreier, n: usize) -> Vec<usize> {
+        // Base case
+        if subset.is_empty() {
+            return vec![];
+        }
+
+        let mut global_min = usize::MAX;
+
+        // 1. Find the absolute minimum element any item in the subset can map to
+        for &val in subset {
+            let data = chain.get_orbit(val,n); // Assume this gets the orbit of `val`
+            let orbit_min = data.orbit.iter().min().unwrap();
+            if *orbit_min < global_min {
+                global_min = *orbit_min;
+            }
+        }
+
+        let mut best_image: Option<Vec<usize>> = None;
+
+        // 2. Find all elements that CAN map to global_min, and branch on them
+        for &val in subset {
+            let data = chain.get_orbit(val,n);
+
+            if data.orbit.contains(&global_min) {
+                // Find a permutation g in G such that g(val) == global_min
+                // (You can reconstruct this using the transversals in your Schreier vectors)
+                let g = Schreier::get_pointwise_transporter(&data,val, global_min).unwrap();
+
+                // Apply g to the REST of the subset
+                let mut mapped_rest = Vec::new();
+                for &x in subset {
+                    if x != val {
+                        mapped_rest.push(g.apply(x)); // g.apply() applies the permutation to integer x
+                    }
+                }
+                // The remainder isn't necessarily sorted anymore
+                mapped_rest.sort_unstable();
+
+                // 3. Recursively minimize the rest of the subset using the Stabilizer of global_min
+                // Your StabChain should be able to give you the subgroup that fixes `global_min`
+                let data = chain.get_orbit(global_min,n);
+
+                let rest_minimized = Self::get_smallest_image(&mapped_rest, &Schreier::from_generators(data.stab_generators), n);
+
+                // Reconstruct the full mapped set
+                let mut current_image = vec![global_min];
+                current_image.extend(rest_minimized);
+
+                // 4. Keep track of the lexicographically smallest outcome
+                match &best_image {
+                    None => best_image = Some(current_image),
+                    Some(best) if current_image < *best => best_image = Some(current_image),
+                    _ => {}
+                }
+            }
+        }
+
+        best_image.unwrap()
+    }
+
+    pub fn is_canonical(subset: &mut Vec<usize>, chain: &Schreier, n: usize) -> bool {
+        subset.sort_unstable(); // Sets must be sorted for lex comparison
+
+        // Quick early out (Optional but highly recommended for speed):
+        // Check if the global minimum of the orbit is < subset[0]. If so, return false immediately.
+
+        let canonical_image = Self::get_smallest_image(subset, chain, n);
+        *subset == canonical_image
+    }
 }
 
 struct SChooseKInGState{
@@ -396,16 +473,18 @@ impl Iterator for SChooseKInG {
                 //Add the orbit representative to current_prefix (it is always current index)
                 self.current_prefix.push(index); // current prefix len has changed here
 
-                if level + 1 == self.k {
-                    let k_tuple = self.current_prefix.clone();
+                let mut orbit_bitmap = 0;
+                for orbit_element in &data.orbit {
+                    orbit_bitmap |= 1usize << *orbit_element;
+                }
 
-                    for orbit_element in &data.orbit {
-                        self.available_S_per_level[level]  &= !(1 << *orbit_element)
-                    }
+                if level + 1 == self.k {
+                    let mut k_tuple = self.current_prefix.clone();
+                    self.available_S_per_level[level] &= !orbit_bitmap;
 
                     self.current_prefix.pop();
 
-                    return Some(k_tuple);
+                        return Some(k_tuple);
                 }
 
                 //simulate recursive call
@@ -415,9 +494,7 @@ impl Iterator for SChooseKInG {
 
 
                 // make the elements inside the orbit unavailable
-                for orbit_element in &data.orbit {
-                    self.available_S_per_level[level]  &= !(1 << *orbit_element)
-                }
+                self.available_S_per_level[level] &= !orbit_bitmap;
             }
 
             self.current_prefix.pop();
@@ -573,6 +650,21 @@ fn orbit_test() {
     let n = schreier.action.get_range();
     let mut data = schreier.get_orbit(3, n);
     assert_eq!(data.orbit, vec![3, 5, 1, 2]);
+
+
+    // how to get from 1 to 5 ?
+    let transporter = Schreier::get_pointwise_transporter(&data, 1, 5);
+    assert_eq!(transporter.unwrap().apply(1), 5);
+    let transporter = Schreier::get_pointwise_transporter(&data, 5, 2);
+    assert_eq!(transporter.unwrap().apply(5), 2);
+    let transporter = Schreier::get_pointwise_transporter(&data, 3, 2);
+    assert_eq!(transporter.unwrap().apply(3), 2);
+    let transporter = Schreier::get_pointwise_transporter(&data, 2, 1);
+    assert_eq!(transporter.unwrap().apply(2), 1);
+    let transporter = Schreier::get_pointwise_transporter(&data, 2, 0);
+    assert_eq!(transporter, None);
+
+
 
     schreier = Schreier::new(
         PermutationGroup::new(
