@@ -75,11 +75,29 @@ fn main() {
     if args.len() > 2 {
         option = args[2].parse::<usize>().unwrap();
     }
+
+    // Invariant chain parsing (e.g. "0,1,2,3" or "2,3")
+    let mut chain_str = "0,1,2,3".to_string();
+    if args.len() > 3 {
+        chain_str = args[3].clone();
+    } else if let Ok(env_chain) = env::var("INVARIANT_CHAIN") {
+        chain_str = env_chain;
+    }
+    let mut chain: Vec<usize> = chain_str
+        .split(',')
+        .filter_map(|s| s.trim().parse::<usize>().ok())
+        .collect();
+    if chain.is_empty() {
+        chain = vec![0, 1, 2, 3];
+    }
+    crate::data_structs::invariant_chain::InvariantChain::set_custom_chain(chain.clone());
+
     info!("Will use k {k}");
     info!("Will use option: {option}");
 
     //0 is canon, 1 is unique, 2 least fast, 3 least full
-    info!("Will use certificate method: {METHOD}\n");
+    info!("Will use certificate method: {METHOD}");
+    info!("Will use invariant chain: {chain:?}\n");
     match option {
         0 => CanaugManager::launch_auto_balanced_parallel(k,false),
         1 => CanaugManager::bfs(k),

@@ -2,6 +2,7 @@ use std::cmp;
 use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::Chain;
+use std::sync::OnceLock;
 use env_logger::Builder;
 use log::{debug, info, LevelFilter};
 use crate::data_structs;
@@ -12,6 +13,7 @@ use crate::data_structs::logger::init_logger;
 use crate::data_structs::nauty_graph::NautyGraph;
 use crate::n_k_combinatorial::NkCom::{NkComb};
 
+static CUSTOM_CHAIN: OnceLock<Vec<usize>> = OnceLock::new();
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct InvariantChainValues {
@@ -28,6 +30,17 @@ pub struct InvariantChain {
 impl InvariantChain {
     pub fn new(links: usize) -> InvariantChain {
         InvariantChain{links, max_links: 4}
+    }
+
+    pub fn set_custom_chain(mut chain: Vec<usize>) {
+        if !chain.contains(&3) {
+            chain.push(3);
+        }
+        let _ = CUSTOM_CHAIN.set(chain);
+    }
+
+    pub fn get_chain() -> &'static [usize] {
+        CUSTOM_CHAIN.get().map(|v| v.as_slice()).unwrap_or(&[0, 1, 2, 3])
     }
 
     fn fill_invariant_value(link: usize, graph: &Graph, values: &mut InvariantChainValues) {
@@ -71,32 +84,36 @@ impl InvariantChain {
     }
 
 
-    fn connected_component(m: &[BM], root: usize) -> BM{
-        let mut visited = BM::from_value(0);
-        let mut frontier = BM::from_value(1<<root);
-        while visited.is_empty() || !frontier.is_empty() {
-            let visiting = frontier.first_index().unwrap();
+    fn connected_component(m: &[BM], root: usize) -> BM {
+        let mut visited = BM::new();
+        let mut frontier = BM::new();
+        frontier.set(root, true);
+        while let Some(visiting) = frontier.first_index() {
+            frontier.set(visiting, false);
+            visited.set(visiting, true);
             let visiting_neighbors = m[visiting];
-            let new_discovered = visiting_neighbors & (!(visited | frontier ));
+            let new_discovered = visiting_neighbors & (!(visited | frontier));
             frontier |= new_discovered;
-            visited.set(visiting,true);
-            frontier.set(visiting,false);
         }
         visited
     }
 
     fn nr_connected_components(graph: &Graph) -> usize {
-        //let mut res = Vec::new();
+        let n = graph.ady_matrix.len();
         let mut res = 0;
-        let mut union = BM::from_value(0);
-        loop{
-            let all_vertices = BM::from_value((1<<graph.ady_matrix.len())-1);
-            let not_considered = all_vertices & (!(union));
-            if *not_considered.as_value() == 0 {break;};
-            let root = not_considered.first_index().unwrap();
+        let mut union = BM::new();
+        let mut all_vertices = BM::new();
+        for i in 0..n {
+            all_vertices.set(i, true);
+        }
+        loop {
+            let not_considered = all_vertices & (!union);
+            let root = match not_considered.first_index() {
+                Some(r) => r,
+                None => break,
+            };
             let new_component = Self::connected_component(graph.ady_matrix.as_slice(), root);
-            res +=1;
-            //res.push(new_component);
+            res += 1;
             union |= new_component;
         }
         res
@@ -196,11 +213,12 @@ impl InvariantChain {
     }
 
     pub fn get_unique_or_least_isomorphs(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        let chain = Self::get_chain();
         // vec containing all subgraph invariants
         let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
 
-        // for each link in the chain
-        for chain_index in 0..self.max_links - 1 {
+        // for each link in the chain (except terminal cert link)
+        for &chain_index in chain.iter().filter(|&&link| link != 3) {
 
             // get invariant link for all subgraphs
             for (graph_index, graph) in subgraphs.iter().enumerate() {
@@ -246,9 +264,10 @@ impl InvariantChain {
 
 
     pub fn get_least_full_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        let chain = Self::get_chain();
         // vec containing all subgraph invariants
         let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
-        for chain_index in 0..self.max_links {
+        for &chain_index in chain {
             for (graph_index, graph) in subgraphs.iter().enumerate() {
                 Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
             }
@@ -271,35 +290,41 @@ impl InvariantChain {
     This method will calculate the full chain in order. If it finds any smaller cert in the candidates it will update
     returns the indexes of the subgraph slice which correspond to the objects isomorph to the canonical one
      */
-        pub fn get_least_fast_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
-        // vec containing all subgraph invariants
+    pub fn get_least_fast_invariant_chain(&self, subgraphs: &[Graph]) -> (bool, Vec<usize>) {
+        let chain = Self::get_chain();
         let mut invariants = vec![InvariantChainValues::default(); subgraphs.len()];
         let mut candidates = (0..subgraphs.len()).collect::<Vec<_>>();
-        for chain_index in 0..self.max_links {
+
+        for &chain_index in chain {
+            if candidates.is_empty() {
+                break;
+            }
 
             let mut filtered_candidates = vec![];
-            let mut least_invariant_index = 0;
+            let first_candidate = candidates[0];
+            Self::fill_invariant_value(chain_index, &subgraphs[first_candidate], &mut invariants[first_candidate]);
+            let mut least_invariant = invariants[first_candidate].clone();
+            filtered_candidates.push(first_candidate);
 
-            //Calculate invariant for all the subgraphs
-            for graph_index in candidates {
+            // Compare with the rest of the candidates
+            for &graph_index in candidates.iter().skip(1) {
                 let graph = &subgraphs[graph_index];
                 Self::fill_invariant_value(chain_index, graph, &mut invariants[graph_index]);
                 let current_invariant = &invariants[graph_index];
-                let least_invariant = &invariants[least_invariant_index];
 
-                if current_invariant < least_invariant {
-                    least_invariant_index = graph_index;
+                if current_invariant < &least_invariant {
+                    least_invariant = current_invariant.clone();
                     filtered_candidates.clear();
-                    filtered_candidates.push(least_invariant_index);
-                } else if current_invariant == least_invariant {
+                    filtered_candidates.push(graph_index);
+                } else if current_invariant == &least_invariant {
                     filtered_candidates.push(graph_index);
                 }
             }
 
             if filtered_candidates.len() == 1 {
-                return (chain_index == self.links, filtered_candidates);
+                return (chain_index == 3, filtered_candidates);
             }
-            candidates = filtered_candidates
+            candidates = filtered_candidates;
         }
         (true, candidates)
     }
