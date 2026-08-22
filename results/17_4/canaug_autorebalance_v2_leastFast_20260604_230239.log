@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.06s
+     Running `target/release/shcreier-sims-app 4 0`
+2026-06-05T05:02:40.048Z [INFO] - Starting schreier
+2026-06-05T05:02:40.048Z [INFO] - Will use k 4
+2026-06-05T05:02:40.048Z [INFO] - Will use option: 0
+2026-06-05T05:02:40.048Z [INFO] - Will use certificate method: 2
+
+2026-06-05T05:02:40.052Z [INFO] - N_k conf 17_4
+2026-06-05T05:02:40.052Z [INFO] - Total Rayon threads: 64
+2026-06-05T05:02:40.052Z [INFO] - Interval: 10

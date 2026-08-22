@@ -1,0 +1,9 @@
+2026-08-22T17:46:37.657Z [INFO] - Starting schreier
+2026-08-22T17:46:37.657Z [INFO] - Will use k 3
+2026-08-22T17:46:37.657Z [INFO] - Will use option: 0
+2026-08-22T17:46:37.657Z [INFO] - Will use certificate method: 2
+2026-08-22T17:46:37.657Z [INFO] - Will use invariant chain: [2, 3]
+
+2026-08-22T17:46:37.660Z [INFO] - N_k conf 16_3
+2026-08-22T17:46:37.660Z [INFO] - Total Rayon threads: 64
+2026-08-22T17:46:37.660Z [INFO] - Interval: 10

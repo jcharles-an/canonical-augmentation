@@ -1,0 +1,35 @@
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.06s
+     Running `target/release/shcreier-sims-app 4 0`
+2026-06-01T06:07:40.265Z [INFO] - Starting schreier
+2026-06-01T06:07:40.265Z [INFO] - Will use k 4
+2026-06-01T06:07:40.265Z [INFO] - Will use option: 0
+2026-06-01T06:07:40.265Z [INFO] - Will use certificate method: 0
+
+2026-06-01T06:07:40.269Z [INFO] - N_k conf 17_4
+2026-06-01T06:07:40.269Z [INFO] - Total Rayon threads: 64
+2026-06-01T06:07:40.269Z [INFO] - Interval: 10
+2026-06-01T17:16:14.274Z [INFO] - effective leaves: 1972
+2026-06-01T17:16:14.274Z [INFO] - Elapsed:40114.009305777s
+	Command being timed: "cargo run --release 4 0"
+	User time (seconds): 2564419.60
+	System time (seconds): 52.91
+	Percent of CPU this job got: 6392%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 11:08:34
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 45056
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 16980
+	Voluntary context switches: 6375
+	Involuntary context switches: 13516950
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 152
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

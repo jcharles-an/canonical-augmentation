@@ -1,0 +1,34 @@
+2026-08-21T17:20:41.265Z [INFO] - Starting schreier
+2026-08-21T17:20:41.265Z [INFO] - Will use k 4
+2026-08-21T17:20:41.265Z [INFO] - Will use option: 0
+2026-08-21T17:20:41.265Z [INFO] - Will use certificate method: 2
+2026-08-21T17:20:41.265Z [INFO] - Will use invariant chain: [0, 2, 1, 3]
+
+2026-08-21T17:20:41.268Z [INFO] - N_k conf 16_4
+2026-08-21T17:20:41.268Z [INFO] - Total Rayon threads: 64
+2026-08-21T17:20:41.268Z [INFO] - Interval: 10
+2026-08-21T17:24:48.108Z [INFO] - effective leaves: 19
+2026-08-21T17:24:48.108Z [INFO] - Elapsed:246.84370404s
+	Command being timed: "./target/release/shcreier-sims-app 4 0 0,2,1,3"
+	User time (seconds): 15783.22
+	System time (seconds): 0.56
+	Percent of CPU this job got: 6394%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:06.84
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 13312
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 7411
+	Voluntary context switches: 4226
+	Involuntary context switches: 52348
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 16
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

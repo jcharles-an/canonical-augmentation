@@ -1,0 +1,21 @@
+====================================================================================================
+ MASTER COMPARISON REPORT: CASE 17_4 (leastFast Invariant Chain Ablation)
+ Generated: Sat Aug 22 10:25:00 CST 2026
+ Configuration: N=17, K=4 (Levi Graph Vertices: 34)
+ Method: leastFast (M=2)
+ Repetitions Averaged per Configuration: 1
+====================================================================================================
+
+Summary Comparison Matrix:
+
+strategy          chain  runs  avg_wall_sec  avg_user_sec  avg_sys_sec  avg_rss_mb  cpu_util_pct  solutions
+autorebalance_v2  2,3    1     27254.0000    1743673.1300  60.9300      23.00       6398.08       1972
+bfs_v1            2,3    1     37182.0000    2371438.1100  2967.0700    62492.76    6385.90       N/A
+
+====================================================================================================
+ Link Reference:
+   0 = Connected Components Count (bitwise BFS)
+   1 = Graph Degeneracy (k-core ordering)
+   2 = Degree Sequence
+   3 = Nauty Canonical Certificate (terminal tie-breaker)
+====================================================================================================

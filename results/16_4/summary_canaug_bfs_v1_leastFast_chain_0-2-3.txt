@@ -1,0 +1,20 @@
+==========================================================================
+Summary Benchmark Report: canaug_bfs_v1_leastFast_chain_0-2-3
+Configuration: N=16, K=4 | Strategy=1 (bfs_v1) | Method=2 (leastFast)
+Date: Fri Aug 21 13:43:22 CST 2026
+==========================================================================
+
+Raw Data per Run:
+run  wall_sec  user_sec  sys_sec  rss_kb  internal_elapsed  solutions
+1    247.28    15765.71  2.08     533924  N/A               19
+2    247.88    15804.12  1.96     538940  N/A               19
+3    248.52    15845.32  1.86     536552  N/A               19
+
+--------------------------------------------------------------------------
+Averages (across 3 runs):
+Average Wall Time : 247.8933 s
+Average User Time : 15805.0500 s
+Average Sys Time  : 1.9667 s
+Average Peak RSS  : 536472.00 KB (523.90 MB)
+CPU Utilization   : 6376.54 %
+==========================================================================

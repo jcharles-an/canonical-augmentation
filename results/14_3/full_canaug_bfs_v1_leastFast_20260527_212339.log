@@ -1,0 +1,88 @@
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.06s
+     Running `target/release/shcreier-sims-app 3 1`
+2026-05-28T03:23:39.965Z [INFO] - Starting schreier
+2026-05-28T03:23:39.965Z [INFO] - Will use k 3
+2026-05-28T03:23:39.965Z [INFO] - Will use option: 1
+2026-05-28T03:23:39.965Z [INFO] - Will use certificate method: 2
+
+2026-05-28T03:23:39.965Z [INFO] - level 0
+2026-05-28T03:23:39.965Z [INFO] - tasks to process 1
+2026-05-28T03:23:39.970Z [INFO] - elapsed: 4.169948ms
+2026-05-28T03:23:39.970Z [INFO] - 
+2026-05-28T03:23:39.970Z [INFO] - level 1
+2026-05-28T03:23:39.970Z [INFO] - tasks to process 1
+2026-05-28T03:23:39.970Z [INFO] - elapsed: 833.434µs
+2026-05-28T03:23:39.970Z [INFO] - 
+2026-05-28T03:23:39.970Z [INFO] - level 2
+2026-05-28T03:23:39.970Z [INFO] - tasks to process 2
+2026-05-28T03:23:39.972Z [INFO] - elapsed: 1.422504ms
+2026-05-28T03:23:39.972Z [INFO] - 
+2026-05-28T03:23:39.972Z [INFO] - level 3
+2026-05-28T03:23:39.972Z [INFO] - tasks to process 5
+2026-05-28T03:23:39.974Z [INFO] - elapsed: 1.788213ms
+2026-05-28T03:23:39.974Z [INFO] - 
+2026-05-28T03:23:39.974Z [INFO] - level 4
+2026-05-28T03:23:39.974Z [INFO] - tasks to process 15
+2026-05-28T03:23:39.980Z [INFO] - elapsed: 6.180693ms
+2026-05-28T03:23:39.980Z [INFO] - 
+2026-05-28T03:23:39.980Z [INFO] - level 5
+2026-05-28T03:23:39.980Z [INFO] - tasks to process 50
+2026-05-28T03:23:39.987Z [INFO] - elapsed: 7.361825ms
+2026-05-28T03:23:39.987Z [INFO] - 
+2026-05-28T03:23:39.987Z [INFO] - level 6
+2026-05-28T03:23:39.987Z [INFO] - tasks to process 229
+2026-05-28T03:23:40.010Z [INFO] - elapsed: 22.60138ms
+2026-05-28T03:23:40.010Z [INFO] - 
+2026-05-28T03:23:40.010Z [INFO] - level 7
+2026-05-28T03:23:40.010Z [INFO] - tasks to process 1262
+2026-05-28T03:23:40.094Z [INFO] - elapsed: 84.272954ms
+2026-05-28T03:23:40.094Z [INFO] - 
+2026-05-28T03:23:40.094Z [INFO] - level 8
+2026-05-28T03:23:40.094Z [INFO] - tasks to process 8190
+2026-05-28T03:23:40.531Z [INFO] - elapsed: 436.833471ms
+2026-05-28T03:23:40.531Z [INFO] - 
+2026-05-28T03:23:40.531Z [INFO] - level 9
+2026-05-28T03:23:40.531Z [INFO] - tasks to process 53510
+2026-05-28T03:23:42.828Z [INFO] - elapsed: 2.296756615s
+2026-05-28T03:23:42.828Z [INFO] - 
+2026-05-28T03:23:42.828Z [INFO] - level 10
+2026-05-28T03:23:42.828Z [INFO] - tasks to process 284027
+2026-05-28T03:23:51.037Z [INFO] - elapsed: 8.209841019s
+2026-05-28T03:23:51.038Z [INFO] - 
+2026-05-28T03:23:51.038Z [INFO] - level 11
+2026-05-28T03:23:51.038Z [INFO] - tasks to process 964413
+2026-05-28T03:24:05.886Z [INFO] - elapsed: 14.848320329s
+2026-05-28T03:24:05.886Z [INFO] - 
+2026-05-28T03:24:05.886Z [INFO] - level 12
+2026-05-28T03:24:05.886Z [INFO] - tasks to process 1559899
+2026-05-28T03:24:15.126Z [INFO] - elapsed: 9.239815716s
+2026-05-28T03:24:15.126Z [INFO] - 
+2026-05-28T03:24:15.126Z [INFO] - level 13
+2026-05-28T03:24:15.126Z [INFO] - tasks to process 731358
+2026-05-28T03:24:16.047Z [INFO] - elapsed: 920.830246ms
+2026-05-28T03:24:16.047Z [INFO] - 
+2026-05-28T03:24:16.047Z [INFO] - All Solutions:21399
+2026-05-28T03:24:16.047Z [INFO] - elapsed: 36.081185491s
+	Command being timed: "cargo run --release 3 1"
+	User time (seconds): 2267.01
+	System time (seconds): 1.38
+	Percent of CPU this job got: 6264%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:36.20
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 528400
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 162337
+	Voluntary context switches: 3007
+	Involuntary context switches: 17000
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

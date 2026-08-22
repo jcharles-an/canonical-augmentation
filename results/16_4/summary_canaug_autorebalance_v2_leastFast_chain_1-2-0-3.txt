@@ -1,0 +1,20 @@
+==========================================================================
+Summary Benchmark Report: canaug_autorebalance_v2_leastFast_chain_1-2-0-3
+Configuration: N=16, K=4 | Strategy=0 (autorebalance_v2) | Method=2 (leastFast)
+Date: Fri Aug 21 11:49:58 CST 2026
+==========================================================================
+
+Raw Data per Run:
+run  wall_sec  user_sec  sys_sec  rss_kb  internal_elapsed  solutions
+1    249.17    15931.60  0.69     13824   249.166787297s    19
+2    249.48    15954.64  0.57     14336   249.480191637s    19
+3    250.07    15993.46  0.58     12288   250.073867294s    19
+
+--------------------------------------------------------------------------
+Averages (across 3 runs):
+Average Wall Time : 249.5733 s
+Average User Time : 15959.9000 s
+Average Sys Time  : 0.6133 s
+Average Peak RSS  : 13482.67 KB (13.17 MB)
+CPU Utilization   : 6395.12 %
+==========================================================================

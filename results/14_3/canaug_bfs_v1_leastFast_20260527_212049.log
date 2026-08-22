@@ -1,0 +1,99 @@
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.05s
+     Running `target/release/shcreier-sims-app 3 1`
+2026-05-28T03:20:49.806Z [INFO] - Starting schreier
+2026-05-28T03:20:49.806Z [INFO] - Will use k 3
+2026-05-28T03:20:49.806Z [INFO] - Will use option: 1
+2026-05-28T03:20:49.806Z [INFO] - Will use certificate method: 2
+
+2026-05-28T03:20:49.806Z [INFO] - level 0
+2026-05-28T03:20:49.806Z [INFO] - tasks to process 1
+2026-05-28T03:20:49.811Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.811Z [INFO] - elapsed: 4.459578ms
+2026-05-28T03:20:49.811Z [INFO] - 
+2026-05-28T03:20:49.811Z [INFO] - level 1
+2026-05-28T03:20:49.811Z [INFO] - tasks to process 1
+2026-05-28T03:20:49.812Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.812Z [INFO] - elapsed: 810.924µs
+2026-05-28T03:20:49.812Z [INFO] - 
+2026-05-28T03:20:49.812Z [INFO] - level 2
+2026-05-28T03:20:49.812Z [INFO] - tasks to process 2
+2026-05-28T03:20:49.813Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.813Z [INFO] - elapsed: 1.265479ms
+2026-05-28T03:20:49.813Z [INFO] - 
+2026-05-28T03:20:49.813Z [INFO] - level 3
+2026-05-28T03:20:49.813Z [INFO] - tasks to process 5
+2026-05-28T03:20:49.814Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.815Z [INFO] - elapsed: 1.845352ms
+2026-05-28T03:20:49.815Z [INFO] - 
+2026-05-28T03:20:49.815Z [INFO] - level 4
+2026-05-28T03:20:49.815Z [INFO] - tasks to process 15
+2026-05-28T03:20:49.816Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.819Z [INFO] - elapsed: 4.232986ms
+2026-05-28T03:20:49.819Z [INFO] - 
+2026-05-28T03:20:49.819Z [INFO] - level 5
+2026-05-28T03:20:49.819Z [INFO] - tasks to process 50
+2026-05-28T03:20:49.820Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.829Z [INFO] - elapsed: 9.672952ms
+2026-05-28T03:20:49.829Z [INFO] - 
+2026-05-28T03:20:49.829Z [INFO] - level 6
+2026-05-28T03:20:49.829Z [INFO] - tasks to process 229
+2026-05-28T03:20:49.830Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.854Z [INFO] - elapsed: 25.197899ms
+2026-05-28T03:20:49.854Z [INFO] - 
+2026-05-28T03:20:49.854Z [INFO] - level 7
+2026-05-28T03:20:49.854Z [INFO] - tasks to process 1262
+2026-05-28T03:20:49.855Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.921Z [INFO] - threads done:1001, 79.24% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:49.937Z [INFO] - elapsed: 83.299102ms
+2026-05-28T03:20:49.937Z [INFO] - 
+2026-05-28T03:20:49.937Z [INFO] - level 8
+2026-05-28T03:20:49.937Z [INFO] - tasks to process 8190
+2026-05-28T03:20:49.938Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:49.988Z [INFO] - threads done:1001, 12.21% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.038Z [INFO] - threads done:2001, 24.42% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.093Z [INFO] - threads done:3001, 36.63% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.149Z [INFO] - threads done:4001, 48.84% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.204Z [INFO] - threads done:5001, 61.05% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.260Z [INFO] - threads done:6001, 73.26% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.314Z [INFO] - threads done:7002, 85.47% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.362Z [INFO] - threads done:8001, 97.68% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.375Z [INFO] - elapsed: 438.20246ms
+2026-05-28T03:20:50.375Z [INFO] - 
+2026-05-28T03:20:50.375Z [INFO] - level 9
+2026-05-28T03:20:50.375Z [INFO] - tasks to process 53510
+2026-05-28T03:20:50.377Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-05-28T03:20:50.412Z [INFO] - threads done:1001, 1.87% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.451Z [INFO] - threads done:2001, 3.74% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.491Z [INFO] - threads done:3001, 5.61% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.532Z [INFO] - threads done:4001, 7.48% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.575Z [INFO] - threads done:5001, 9.34% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.618Z [INFO] - threads done:6001, 11.21% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.661Z [INFO] - threads done:7001, 13.08% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.703Z [INFO] - threads done:8001, 14.95% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.747Z [INFO] - threads done:9001, 16.82% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.790Z [INFO] - threads done:10001, 18.69% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.828Z [INFO] - threads done:11001, 20.56% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.869Z [INFO] - threads done:12001, 22.43% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.911Z [INFO] - threads done:13001, 24.29% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.952Z [INFO] - threads done:14001, 26.16% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:50.994Z [INFO] - threads done:15001, 28.03% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.036Z [INFO] - threads done:16001, 29.90% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.078Z [INFO] - threads done:17001, 31.77% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.120Z [INFO] - threads done:18001, 33.64% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.163Z [INFO] - threads done:19001, 35.51% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.207Z [INFO] - threads done:20001, 37.38% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.249Z [INFO] - threads done:21001, 39.25% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.293Z [INFO] - threads done:22001, 41.11% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.335Z [INFO] - threads done:23001, 42.98% 	 secs : 0 will finish in 0.00 minutes
+2026-05-28T03:20:51.377Z [INFO] - threads done:24002, 44.85% 	 secs : 1 will finish in 0.02 minutes
+2026-05-28T03:20:51.419Z [INFO] - threads done:25001, 46.72% 	 secs : 1 will finish in 0.02 minutes
+2026-05-28T03:20:51.463Z [INFO] - threads done:26002, 48.59% 	 secs : 1 will finish in 0.02 minutes
+2026-05-28T03:20:51.507Z [INFO] - threads done:27001, 50.46% 	 secs : 1 will finish in 0.02 minutes
+2026-05-28T03:20:51.553Z [INFO] - threads done:28001, 52.33% 	 secs : 1 will finish in 0.02 minutes
+2026-05-28T03:20:51.597Z [INFO] - threads done:29001, 54.20% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.640Z [INFO] - threads done:30001, 56.06% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.684Z [INFO] - threads done:31001, 57.93% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.730Z [INFO] - threads done:32001, 59.80% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.773Z [INFO] - threads done:33001, 61.67% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.817Z [INFO] - threads done:34001, 63.54% 	 secs : 1 will finish in 0.01 minutes
+2026-05-28T03:20:51.861Z [INFO] - threads done:35001, 65.41% 	 secs : 1 will finish in 0.01 minutes

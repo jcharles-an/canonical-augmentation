@@ -1,0 +1,38 @@
+   Compiling shcreier-sims-app v0.1.0 (/home/carlos/rust/shcreier-sims-app)
+error: unexpected closing delimiter: `)`
+   --> src/n_k_combinatorial/canaugManager.rs:199:14
+    |
+175 |                 if current_threads_done % 1000 == 0 {
+    |                                                     - the nearest open delimiter
+...
+182 |                          current_threads_done as f32 * 100.0 / total_threads as f32);
+    |                                                                                    - missing open `(` for this delimiter
+...
+199 |             }).collect::<Vec<_>>();
+    |              ^ unexpected closing delimiter
+
+error: could not compile `shcreier-sims-app` (bin "shcreier-sims-app") due to 1 previous error
+Command exited with non-zero status 101
+	Command being timed: "cargo run --release 3 1"
+	User time (seconds): 0.05
+	System time (seconds): 0.05
+	Percent of CPU this job got: 101%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.10
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 53760
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 15351
+	Voluntary context switches: 55
+	Involuntary context switches: 3
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 16
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 101

@@ -1,0 +1,92 @@
+    Finished `release` profile [optimized + debuginfo] target(s) in 0.05s
+     Running `target/release/shcreier-sims-app 3 1`
+2026-05-28T04:20:23.335Z [INFO] - Starting schreier
+2026-05-28T04:20:23.335Z [INFO] - Will use k 3
+2026-05-28T04:20:23.335Z [INFO] - Will use option: 1
+2026-05-28T04:20:23.335Z [INFO] - Will use certificate method: 2
+
+2026-05-28T04:20:23.335Z [INFO] - level 0
+2026-05-28T04:20:23.335Z [INFO] - tasks to process 1
+2026-05-28T04:20:23.339Z [INFO] - elapsed: 4.119812ms
+2026-05-28T04:20:23.339Z [INFO] - 
+2026-05-28T04:20:23.339Z [INFO] - level 1
+2026-05-28T04:20:23.339Z [INFO] - tasks to process 1
+2026-05-28T04:20:23.340Z [INFO] - elapsed: 993.334µs
+2026-05-28T04:20:23.340Z [INFO] - 
+2026-05-28T04:20:23.340Z [INFO] - level 2
+2026-05-28T04:20:23.340Z [INFO] - tasks to process 2
+2026-05-28T04:20:23.342Z [INFO] - elapsed: 1.618577ms
+2026-05-28T04:20:23.342Z [INFO] - 
+2026-05-28T04:20:23.342Z [INFO] - level 3
+2026-05-28T04:20:23.342Z [INFO] - tasks to process 5
+2026-05-28T04:20:23.344Z [INFO] - elapsed: 1.991238ms
+2026-05-28T04:20:23.344Z [INFO] - 
+2026-05-28T04:20:23.344Z [INFO] - level 4
+2026-05-28T04:20:23.344Z [INFO] - tasks to process 15
+2026-05-28T04:20:23.351Z [INFO] - elapsed: 6.87476ms
+2026-05-28T04:20:23.351Z [INFO] - 
+2026-05-28T04:20:23.351Z [INFO] - level 5
+2026-05-28T04:20:23.351Z [INFO] - tasks to process 51
+2026-05-28T04:20:23.361Z [INFO] - elapsed: 10.813347ms
+2026-05-28T04:20:23.361Z [INFO] - 
+2026-05-28T04:20:23.361Z [INFO] - level 6
+2026-05-28T04:20:23.361Z [INFO] - tasks to process 236
+2026-05-28T04:20:23.393Z [INFO] - elapsed: 31.211384ms
+2026-05-28T04:20:23.393Z [INFO] - 
+2026-05-28T04:20:23.393Z [INFO] - level 7
+2026-05-28T04:20:23.393Z [INFO] - tasks to process 1360
+2026-05-28T04:20:23.509Z [INFO] - elapsed: 116.684918ms
+2026-05-28T04:20:23.509Z [INFO] - 
+2026-05-28T04:20:23.509Z [INFO] - level 8
+2026-05-28T04:20:23.509Z [INFO] - tasks to process 9661
+2026-05-28T04:20:24.251Z [INFO] - elapsed: 741.780178ms
+2026-05-28T04:20:24.251Z [INFO] - 
+2026-05-28T04:20:24.251Z [INFO] - level 9
+2026-05-28T04:20:24.251Z [INFO] - tasks to process 76121
+2026-05-28T04:20:29.506Z [INFO] - elapsed: 5.254522481s
+2026-05-28T04:20:29.506Z [INFO] - 
+2026-05-28T04:20:29.506Z [INFO] - level 10
+2026-05-28T04:20:29.506Z [INFO] - tasks to process 560387
+2026-05-28T04:20:59.370Z [INFO] - elapsed: 29.864368795s
+2026-05-28T04:20:59.370Z [INFO] - 
+2026-05-28T04:20:59.370Z [INFO] - level 11
+2026-05-28T04:20:59.370Z [INFO] - tasks to process 3175914
+2026-05-28T04:22:50.126Z [INFO] - elapsed: 110.756430087s
+2026-05-28T04:22:50.126Z [INFO] - 
+2026-05-28T04:22:50.126Z [INFO] - level 12
+2026-05-28T04:22:50.126Z [INFO] - tasks to process 11133507
+2026-05-28T04:26:23.616Z [INFO] - elapsed: 213.489175513s
+2026-05-28T04:26:23.616Z [INFO] - 
+2026-05-28T04:26:23.616Z [INFO] - level 13
+2026-05-28T04:26:23.616Z [INFO] - tasks to process 18243479
+2026-05-28T04:29:28.694Z [INFO] - elapsed: 185.07814772s
+2026-05-28T04:29:28.694Z [INFO] - 
+2026-05-28T04:29:28.694Z [INFO] - level 14
+2026-05-28T04:29:28.694Z [INFO] - tasks to process 8564991
+2026-05-28T04:29:43.827Z [INFO] - elapsed: 15.132896853s
+2026-05-28T04:29:43.827Z [INFO] - 
+2026-05-28T04:29:43.827Z [INFO] - All Solutions:245342
+2026-05-28T04:29:43.827Z [INFO] - elapsed: 560.491802265s
+	Command being timed: "cargo run --release 3 1"
+	User time (seconds): 35264.78
+	System time (seconds): 21.16
+	Percent of CPU this job got: 6289%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 9:20.98
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 5651924
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1649391
+	Voluntary context switches: 3607
+	Involuntary context switches: 217891
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 152
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
