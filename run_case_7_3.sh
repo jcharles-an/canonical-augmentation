@@ -24,10 +24,10 @@ trap "echo -e '\nSuite interrupted.'; exit 1" SIGINT
 #   - O=1: Breadth-First Search (bfs_v1)
 # =============================================================================
 
-N=13
+N=17
 K=3
 M=2 # leastFast method
-NUM_RUNS=5
+NUM_RUNS=1
 RESULTS_DIR="results/${N}_${K}"
 mkdir -p "$RESULTS_DIR"
 
@@ -71,10 +71,14 @@ CHAINS=(
   "2,1,0,3 Full_DegSeq_Degen_Comp_Nauty"
 )
 
+CHAINS=("2,3 DegSeq_Nauty")
+
 STRATEGIES=(
   "0 autorebalance_v2"
   "1 bfs_v1"
 )
+
+STRATEGIES=("0 autorebalance_v2")
 
 TOTAL_EXP=$(( ${#STRATEGIES[@]} * ${#CHAINS[@]} ))
 EXP_NUM=0
