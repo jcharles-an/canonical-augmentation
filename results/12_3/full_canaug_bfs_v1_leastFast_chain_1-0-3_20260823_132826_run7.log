@@ -1,0 +1,123 @@
+2026-08-23T19:28:29.640Z [INFO] - Starting schreier
+2026-08-23T19:28:29.640Z [INFO] - Will use k 3
+2026-08-23T19:28:29.640Z [INFO] - Will use option: 1
+2026-08-23T19:28:29.640Z [INFO] - Will use certificate method: 2
+2026-08-23T19:28:29.640Z [INFO] - Will use invariant chain: [1, 0, 3]
+
+2026-08-23T19:28:29.640Z [INFO] - level 0
+2026-08-23T19:28:29.640Z [INFO] - tasks to process 1
+2026-08-23T19:28:29.644Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.644Z [INFO] - elapsed: 3.93494ms
+2026-08-23T19:28:29.644Z [INFO] - 
+2026-08-23T19:28:29.644Z [INFO] - level 1
+2026-08-23T19:28:29.644Z [INFO] - tasks to process 1
+2026-08-23T19:28:29.645Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.645Z [INFO] - elapsed: 604µs
+2026-08-23T19:28:29.645Z [INFO] - 
+2026-08-23T19:28:29.645Z [INFO] - level 2
+2026-08-23T19:28:29.645Z [INFO] - tasks to process 2
+2026-08-23T19:28:29.646Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.646Z [INFO] - elapsed: 1.117983ms
+2026-08-23T19:28:29.646Z [INFO] - 
+2026-08-23T19:28:29.646Z [INFO] - level 3
+2026-08-23T19:28:29.646Z [INFO] - tasks to process 5
+2026-08-23T19:28:29.647Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.648Z [INFO] - elapsed: 1.81152ms
+2026-08-23T19:28:29.648Z [INFO] - 
+2026-08-23T19:28:29.648Z [INFO] - level 4
+2026-08-23T19:28:29.648Z [INFO] - tasks to process 15
+2026-08-23T19:28:29.649Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.653Z [INFO] - elapsed: 5.387752ms
+2026-08-23T19:28:29.653Z [INFO] - 
+2026-08-23T19:28:29.653Z [INFO] - level 5
+2026-08-23T19:28:29.653Z [INFO] - tasks to process 46
+2026-08-23T19:28:29.654Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.661Z [INFO] - elapsed: 7.434864ms
+2026-08-23T19:28:29.661Z [INFO] - 
+2026-08-23T19:28:29.661Z [INFO] - level 6
+2026-08-23T19:28:29.661Z [INFO] - tasks to process 183
+2026-08-23T19:28:29.662Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.677Z [INFO] - elapsed: 16.141997ms
+2026-08-23T19:28:29.677Z [INFO] - 
+2026-08-23T19:28:29.677Z [INFO] - level 7
+2026-08-23T19:28:29.677Z [INFO] - tasks to process 786
+2026-08-23T19:28:29.678Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.725Z [INFO] - elapsed: 47.888449ms
+2026-08-23T19:28:29.725Z [INFO] - 
+2026-08-23T19:28:29.725Z [INFO] - level 8
+2026-08-23T19:28:29.725Z [INFO] - tasks to process 3174
+2026-08-23T19:28:29.726Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.763Z [INFO] - threads done:1002, 31.51% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.803Z [INFO] - threads done:2001, 63.01% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.841Z [INFO] - threads done:3002, 94.52% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.849Z [INFO] - elapsed: 124.067146ms
+2026-08-23T19:28:29.849Z [INFO] - 
+2026-08-23T19:28:29.849Z [INFO] - level 9
+2026-08-23T19:28:29.849Z [INFO] - tasks to process 9346
+2026-08-23T19:28:29.849Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:29.869Z [INFO] - threads done:1001, 10.70% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.891Z [INFO] - threads done:2001, 21.40% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.913Z [INFO] - threads done:3001, 32.10% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.935Z [INFO] - threads done:4001, 42.80% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.957Z [INFO] - threads done:5001, 53.50% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:29.979Z [INFO] - threads done:6001, 64.20% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.001Z [INFO] - threads done:7001, 74.90% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.023Z [INFO] - threads done:8001, 85.60% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.045Z [INFO] - threads done:9001, 96.30% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.055Z [INFO] - elapsed: 206.06769ms
+2026-08-23T19:28:30.055Z [INFO] - 
+2026-08-23T19:28:30.055Z [INFO] - level 10
+2026-08-23T19:28:30.055Z [INFO] - tasks to process 14149
+2026-08-23T19:28:30.055Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:30.063Z [INFO] - threads done:1001, 7.07% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.070Z [INFO] - threads done:2001, 14.14% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.077Z [INFO] - threads done:3001, 21.20% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.084Z [INFO] - threads done:4001, 28.27% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.092Z [INFO] - threads done:5001, 35.34% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.099Z [INFO] - threads done:6004, 42.41% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.107Z [INFO] - threads done:7001, 49.47% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.115Z [INFO] - threads done:8002, 56.54% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.123Z [INFO] - threads done:9001, 63.61% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.131Z [INFO] - threads done:10001, 70.68% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.139Z [INFO] - threads done:11001, 77.74% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.146Z [INFO] - threads done:12001, 84.81% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.155Z [INFO] - threads done:13001, 91.88% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.162Z [INFO] - threads done:14001, 98.95% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.166Z [INFO] - elapsed: 111.164332ms
+2026-08-23T19:28:30.166Z [INFO] - 
+2026-08-23T19:28:30.166Z [INFO] - level 11
+2026-08-23T19:28:30.166Z [INFO] - tasks to process 6532
+2026-08-23T19:28:30.166Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:28:30.167Z [INFO] - threads done:1006, 15.31% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.168Z [INFO] - threads done:2004, 30.62% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.169Z [INFO] - threads done:3009, 45.93% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.170Z [INFO] - threads done:4004, 61.24% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.170Z [INFO] - threads done:5003, 76.55% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.171Z [INFO] - threads done:6007, 91.86% 	 secs : 0 will finish in 0.00 minutes
+2026-08-23T19:28:30.173Z [INFO] - elapsed: 6.312052ms
+2026-08-23T19:28:30.173Z [INFO] - 
+2026-08-23T19:28:30.173Z [INFO] - All Solutions:229
+2026-08-23T19:28:30.173Z [INFO] - Elapsed:532.041432ms
+	Command being timed: "./target/release/shcreier-sims-app 3 1 1,0,3"
+	User time (seconds): 29.09
+	System time (seconds): 0.11
+	Percent of CPU this job got: 5449%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.53
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 6656
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 4981
+	Voluntary context switches: 2323
+	Involuntary context switches: 4386
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 16
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

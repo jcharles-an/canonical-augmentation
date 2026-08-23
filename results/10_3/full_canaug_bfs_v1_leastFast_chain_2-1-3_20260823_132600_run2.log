@@ -1,0 +1,81 @@
+2026-08-23T19:26:00.218Z [INFO] - Starting schreier
+2026-08-23T19:26:00.218Z [INFO] - Will use k 3
+2026-08-23T19:26:00.218Z [INFO] - Will use option: 1
+2026-08-23T19:26:00.218Z [INFO] - Will use certificate method: 2
+2026-08-23T19:26:00.218Z [INFO] - Will use invariant chain: [2, 1, 3]
+
+2026-08-23T19:26:00.218Z [INFO] - level 0
+2026-08-23T19:26:00.218Z [INFO] - tasks to process 1
+2026-08-23T19:26:00.222Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.222Z [INFO] - elapsed: 3.670438ms
+2026-08-23T19:26:00.222Z [INFO] - 
+2026-08-23T19:26:00.222Z [INFO] - level 1
+2026-08-23T19:26:00.222Z [INFO] - tasks to process 1
+2026-08-23T19:26:00.222Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.222Z [INFO] - elapsed: 348.489µs
+2026-08-23T19:26:00.222Z [INFO] - 
+2026-08-23T19:26:00.222Z [INFO] - level 2
+2026-08-23T19:26:00.222Z [INFO] - tasks to process 2
+2026-08-23T19:26:00.223Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.223Z [INFO] - elapsed: 525.403µs
+2026-08-23T19:26:00.223Z [INFO] - 
+2026-08-23T19:26:00.223Z [INFO] - level 3
+2026-08-23T19:26:00.223Z [INFO] - tasks to process 5
+2026-08-23T19:26:00.223Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.223Z [INFO] - elapsed: 633.189µs
+2026-08-23T19:26:00.223Z [INFO] - 
+2026-08-23T19:26:00.223Z [INFO] - level 4
+2026-08-23T19:26:00.223Z [INFO] - tasks to process 13
+2026-08-23T19:26:00.224Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.224Z [INFO] - elapsed: 813.913µs
+2026-08-23T19:26:00.224Z [INFO] - 
+2026-08-23T19:26:00.224Z [INFO] - level 5
+2026-08-23T19:26:00.224Z [INFO] - tasks to process 30
+2026-08-23T19:26:00.224Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.226Z [INFO] - elapsed: 1.651685ms
+2026-08-23T19:26:00.226Z [INFO] - 
+2026-08-23T19:26:00.226Z [INFO] - level 6
+2026-08-23T19:26:00.226Z [INFO] - tasks to process 79
+2026-08-23T19:26:00.226Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.228Z [INFO] - elapsed: 2.40269ms
+2026-08-23T19:26:00.228Z [INFO] - 
+2026-08-23T19:26:00.228Z [INFO] - level 7
+2026-08-23T19:26:00.228Z [INFO] - tasks to process 160
+2026-08-23T19:26:00.228Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.230Z [INFO] - elapsed: 1.871407ms
+2026-08-23T19:26:00.230Z [INFO] - 
+2026-08-23T19:26:00.230Z [INFO] - level 8
+2026-08-23T19:26:00.230Z [INFO] - tasks to process 198
+2026-08-23T19:26:00.230Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.231Z [INFO] - elapsed: 1.21693ms
+2026-08-23T19:26:00.231Z [INFO] - 
+2026-08-23T19:26:00.231Z [INFO] - level 9
+2026-08-23T19:26:00.231Z [INFO] - tasks to process 91
+2026-08-23T19:26:00.231Z [INFO] - threads done:1, 0.00% 	 secs : 0 will finish in NaN minutes
+2026-08-23T19:26:00.232Z [INFO] - elapsed: 494.784µs
+2026-08-23T19:26:00.232Z [INFO] - 
+2026-08-23T19:26:00.232Z [INFO] - All Solutions:10
+2026-08-23T19:26:00.232Z [INFO] - Elapsed:13.688285ms
+	Command being timed: "./target/release/shcreier-sims-app 3 1 2,1,3"
+	User time (seconds): 0.27
+	System time (seconds): 0.03
+	Percent of CPU this job got: 1864%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.01
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 4096
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 1967
+	Voluntary context switches: 1088
+	Involuntary context switches: 3390
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 8
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

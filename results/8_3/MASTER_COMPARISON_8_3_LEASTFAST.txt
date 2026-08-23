@@ -1,0 +1,51 @@
+====================================================================================================
+ MASTER COMPARISON REPORT: CASE 8_3 (leastFast Invariant Chain Ablation)
+ Generated: Sun Aug 23 13:25:02 CST 2026
+ Configuration: N=8, K=3 (Levi Graph Vertices: 16)
+ Method: leastFast (M=2)
+ Repetitions Averaged per Configuration: 10
+====================================================================================================
+
+Summary Comparison Matrix:
+
+strategy          chain    runs  avg_wall_sec  avg_user_sec  avg_sys_sec  avg_rss_mb  cpu_util_pct  solutions
+autorebalance_v2  3        10    0.0000        0.0090        0.0110       3.95        inf           1
+autorebalance_v2  0,3      10    0.0000        0.0070        0.0170       4.00        inf           1
+autorebalance_v2  1,3      10    0.0000        0.0080        0.0160       4.00        inf           1
+autorebalance_v2  2,3      10    0.0000        0.0070        0.0180       4.00        inf           1
+autorebalance_v2  0,1,3    10    0.0000        0.0070        0.0200       4.00        inf           1
+autorebalance_v2  0,2,3    10    0.0000        0.0080        0.0140       3.95        inf           1
+autorebalance_v2  1,0,3    10    0.0000        0.0080        0.0180       4.00        inf           1
+autorebalance_v2  1,2,3    10    0.0000        0.0090        0.0120       4.00        inf           1
+autorebalance_v2  2,0,3    10    0.0000        0.0090        0.0180       4.00        inf           1
+autorebalance_v2  2,1,3    10    0.0000        0.0100        0.0140       4.00        inf           1
+autorebalance_v2  0,1,2,3  10    0.0000        0.0080        0.0170       4.00        inf           1
+autorebalance_v2  0,2,1,3  10    0.0000        0.0100        0.0140       4.00        inf           1
+autorebalance_v2  1,0,2,3  10    0.0000        0.0090        0.0150       4.00        inf           1
+autorebalance_v2  1,2,0,3  10    0.0000        0.0040        0.0220       4.00        inf           1
+autorebalance_v2  2,0,1,3  10    0.0000        0.0060        0.0160       4.00        inf           1
+autorebalance_v2  2,1,0,3  10    0.0000        0.0070        0.0150       4.00        inf           1
+bfs_v1            3        10    0.0000        0.0120        0.0170       4.00        inf           1
+bfs_v1            0,3      10    0.0000        0.0120        0.0140       4.00        inf           1
+bfs_v1            1,3      10    0.0000        0.0080        0.0210       4.00        inf           1
+bfs_v1            2,3      10    0.0000        0.0070        0.0190       4.00        inf           1
+bfs_v1            0,1,3    10    0.0010        0.0090        0.0180       4.00        2700.00       1
+bfs_v1            0,2,3    10    0.0000        0.0110        0.0170       4.00        inf           1
+bfs_v1            1,0,3    10    0.0000        0.0120        0.0150       4.00        inf           1
+bfs_v1            1,2,3    10    0.0010        0.0090        0.0180       4.00        2700.00       1
+bfs_v1            2,0,3    10    0.0010        0.0110        0.0160       4.00        2700.00       1
+bfs_v1            2,1,3    10    0.0000        0.0070        0.0210       4.00        inf           1
+bfs_v1            0,1,2,3  10    0.0000        0.0130        0.0140       4.00        inf           1
+bfs_v1            0,2,1,3  10    0.0000        0.0090        0.0190       4.00        inf           1
+bfs_v1            1,0,2,3  10    0.0000        0.0070        0.0180       4.00        inf           1
+bfs_v1            1,2,0,3  10    0.0000        0.0090        0.0190       4.00        inf           1
+bfs_v1            2,0,1,3  10    0.0000        0.0050        0.0210       3.90        inf           1
+bfs_v1            2,1,0,3  10    0.0000        0.0090        0.0180       4.00        inf           1
+
+====================================================================================================
+ Link Reference:
+   0 = Connected Components Count (bitwise BFS)
+   1 = Graph Degeneracy (k-core ordering)
+   2 = Degree Sequence
+   3 = Nauty Canonical Certificate (terminal tie-breaker)
+====================================================================================================
