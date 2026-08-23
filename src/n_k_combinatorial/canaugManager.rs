@@ -139,7 +139,7 @@ impl CanaugManager {
         }
 
         info!("All Solutions:{}", solutions);
-        info!("elapsed: {:?}", now.elapsed());
+        info!("Elapsed:{:?}", now.elapsed());
     }
 
     pub fn calculate_level(k: usize, leaf_level: usize, print: bool, graphs: &mut [Graph] ) -> (Vec<Graph>, usize) {

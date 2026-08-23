@@ -103,7 +103,7 @@ for ((i = 1; i <= NUM_RUNS; i++)); do
   fi
 
   # Internal solver metrics
-  INTERNAL_TIME=$(grep -E "Elapsed:" "$LOG_FILE" | tail -n 1 | awk -F'Elapsed:' '{print $2}' | tr -d ' ')
+  INTERNAL_TIME=$(grep -iE "Elapsed:" "$LOG_FILE" | tail -n 1 | awk -F'[eE]lapsed:' '{print $2}' | tr -d ' ')
   SOLUTIONS=$(grep -E "effective leaves:|All Solutions:" "$LOG_FILE" | tail -n 1 | awk -F':' '{print $NF}' | tr -d ' ')
 
   # Fallback defaults if empty
